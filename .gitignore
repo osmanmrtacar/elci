@@ -1,0 +1,42 @@
+# Backend (Go)
+backend/.env
+backend/data/*.db
+backend/data/*.db-*
+backend/tmp/
+backend/*.log
+
+# Frontend (React/Node)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib

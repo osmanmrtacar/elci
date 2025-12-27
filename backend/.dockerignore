@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Binary
+bin/
+server
+
+# Database
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation
+README.md
+*.md
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib

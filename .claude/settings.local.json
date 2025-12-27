@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod init:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install)",
+      "Bash(go mod tidy:*)",
+      "Bash(go build:*)",
+      "Bash(./bin/server:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cat:*)",
+      "Bash(tee:*)",
+      "WebSearch",
+      "Bash(sqlite3:*)",
+      "Bash(echo:*)",
+      "Bash(chmod:*)",
+      "Bash(pkill:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill -9)",
+      "WebFetch(domain:docs.x.com)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:developer.x.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:devcommunity.x.com)",
+      "Bash(tree:*)",
+      "Bash(go run:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}

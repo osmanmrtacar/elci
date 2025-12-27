@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sosyal-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Server Configuration
+      - SERVER_PORT=8080
+      - SERVER_HOST=0.0.0.0
+      - FRONTEND_URL=http://localhost:3000
+
+      # Database
+      - DATABASE_PATH=/app/data/sosyal.db
+
+      # JWT Configuration
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_change_in_production}
+      - JWT_EXPIRATION=720h
+
+      # Environment
+      - ENVIRONMENT=production
+
+      # CORS
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
+
+      # Logging
+      - LOG_LEVEL=info
+
+      # TikTok API (provide your own credentials)
+      - TIKTOK_CLIENT_KEY=${TIKTOK_CLIENT_KEY}
+      - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
+      - TIKTOK_REDIRECT_URI=${TIKTOK_REDIRECT_URI}
+      - TIKTOK_SCOPES=user.info.basic,video.publish
+
+      # X (Twitter) API
+      - X_CLIENT_ID=${X_CLIENT_ID}
+      - X_CLIENT_SECRET=${X_CLIENT_SECRET}
+      - X_REDIRECT_URI=${X_REDIRECT_URI}
+
+      # Instagram API
+      - INSTAGRAM_APP_ID=${INSTAGRAM_APP_ID}
+      - INSTAGRAM_APP_SECRET=${INSTAGRAM_APP_SECRET}
+      - INSTAGRAM_REDIRECT_URI=${INSTAGRAM_REDIRECT_URI}
+    volumes:
+      # Persist database
+      - backend-data:/app/data
+    networks:
+      - sosyal-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8080}
+    container_name: sosyal-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - sosyal-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  backend-data:
+    driver: local
+
+networks:
+  sosyal-network:
+    driver: bridge
