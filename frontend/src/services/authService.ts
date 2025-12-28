@@ -45,9 +45,7 @@ export const authService = {
     const token = localStorage.getItem("auth_token");
     if (token) {
       try {
-        const response = await api.get("/api/v1/auth/x/login", {
-          maxRedirects: 0,
-        });
+        const response = await api.get("/api/v1/auth/x/login");
         if (response.headers.location) {
           window.location.href = response.headers.location;
         }
@@ -72,6 +70,8 @@ export const authService = {
     if (token) {
       try {
         const response = await api.get("/api/v1/auth/instagram/login");
+        console.log("got response");
+        console.log(response.headers.location);
         if (response.headers.location) {
           window.location.href = response.headers.location;
         }
