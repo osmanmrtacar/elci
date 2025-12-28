@@ -111,11 +111,9 @@ func (h *MultiPlatformAuthHandler) handlePlatformLogin(c *gin.Context, platformT
 	c.SetCookie("oauth_state", authResp.State, 600, "/", "", false, true)
 	c.SetCookie("oauth_platform", string(platformType), 600, "/", "", false, true)
 
-	// If user is already logged in, store their JWT token to preserve session through OAuth flow
-	authHeader := c.GetHeader("Authorization")
-	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-		jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
-		c.SetCookie("oauth_jwt", jwtToken, 600, "/", "", false, true)
+	// Check if user is already logged in via oauth_jwt cookie (set by frontend)
+	jwtCookie, err := c.Cookie("oauth_jwt")
+	if err == nil && jwtCookie != "" {
 		log.Printf("Preserving user session through OAuth flow")
 	}
 
