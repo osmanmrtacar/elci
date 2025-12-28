@@ -5,6 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  maxRedirects: 0,
   validateStatus: (status) => status === 307 || status < 300,
   headers: {
     "Content-Type": "application/json",

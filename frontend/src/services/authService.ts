@@ -6,7 +6,8 @@ import {
   User,
 } from "../types/user";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
+  "http://localhost:8080";
 
 export const authService = {
   // Initiate TikTok OAuth login
@@ -17,10 +18,7 @@ export const authService = {
     if (token) {
       // Call login endpoint with auth header - backend will store user_id in oauth session
       try {
-        const response = await api.get("/api/v1/auth/tiktok/login", {
-          maxRedirects: 0,
-          validateStatus: (status) => status === 307 || status === 302,
-        });
+        const response = await api.get("/api/v1/auth/tiktok/login");
         // Follow the redirect
         if (response.headers.location) {
           window.location.href = response.headers.location;
@@ -49,7 +47,6 @@ export const authService = {
       try {
         const response = await api.get("/api/v1/auth/x/login", {
           maxRedirects: 0,
-          validateStatus: (status) => status === 307 || status === 302,
         });
         if (response.headers.location) {
           window.location.href = response.headers.location;
@@ -74,10 +71,7 @@ export const authService = {
     const token = localStorage.getItem("auth_token");
     if (token) {
       try {
-        const response = await api.get("/api/v1/auth/instagram/login", {
-          maxRedirects: 0,
-          validateStatus: (status) => status === 307 || status === 302,
-        });
+        const response = await api.get("/api/v1/auth/instagram/login");
         if (response.headers.location) {
           window.location.href = response.headers.location;
         }
