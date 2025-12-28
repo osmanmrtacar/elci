@@ -12,6 +12,7 @@ type OAuthSession struct {
 	State        string    `json:"state"`
 	CodeVerifier string    `json:"code_verifier"`
 	Platform     Platform  `json:"platform"`
+	UserID       *int64    `json:"user_id,omitempty"` // ID of logged-in user (null for new registrations)
 	CreatedAt    time.Time `json:"created_at"`
 	ExpiresAt    time.Time `json:"expires_at"`
 }
@@ -28,11 +29,11 @@ func NewOAuthSessionRepository(db *sql.DB) *OAuthSessionRepository {
 // Create creates a new OAuth session
 func (r *OAuthSessionRepository) Create(session *OAuthSession) error {
 	query := `
-		INSERT INTO oauth_sessions (state, code_verifier, platform, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO oauth_sessions (state, code_verifier, platform, user_id, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
 	now := time.Now()
-	result, err := r.DB.Exec(query, session.State, session.CodeVerifier, session.Platform, now, session.ExpiresAt)
+	result, err := r.DB.Exec(query, session.State, session.CodeVerifier, session.Platform, session.UserID, now, session.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("failed to create oauth session: %w", err)
 	}
@@ -50,12 +51,12 @@ func (r *OAuthSessionRepository) Create(session *OAuthSession) error {
 // GetByState retrieves an OAuth session by state
 func (r *OAuthSessionRepository) GetByState(state string) (*OAuthSession, error) {
 	query := `
-		SELECT id, state, code_verifier, platform, created_at, expires_at
+		SELECT id, state, code_verifier, platform, user_id, created_at, expires_at
 		FROM oauth_sessions WHERE state = ?
 	`
 	session := &OAuthSession{}
 	err := r.DB.QueryRow(query, state).Scan(
-		&session.ID, &session.State, &session.CodeVerifier, &session.Platform, &session.CreatedAt, &session.ExpiresAt,
+		&session.ID, &session.State, &session.CodeVerifier, &session.Platform, &session.UserID, &session.CreatedAt, &session.ExpiresAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("oauth session not found")

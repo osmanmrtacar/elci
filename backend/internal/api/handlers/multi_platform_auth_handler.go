@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -80,6 +79,17 @@ func (h *MultiPlatformAuthHandler) handlePlatformLogin(c *gin.Context, platformT
 		return
 	}
 
+	// Check if user is already logged in (check for JWT token in Authorization header)
+	var loggedInUserID *int64
+	userID, err := middleware.GetUserID(c)
+	if err == nil {
+		// User is logged in - will connect platform to existing account
+		loggedInUserID = &userID
+		log.Printf("User %d will connect %s to their existing account", userID, platformType)
+	} else {
+		log.Printf("New user registration flow for %s", platformType)
+	}
+
 	// Generate OAuth URL
 	authResp, err := platformService.GenerateAuthURL()
 	if err != nil {
@@ -90,12 +100,13 @@ func (h *MultiPlatformAuthHandler) handlePlatformLogin(c *gin.Context, platformT
 		return
 	}
 
-	// Store OAuth session in database (for PKCE and state validation)
-	expiresAt := time.Now().Add(10 * time.Minute)
+	// Store OAuth session in database with user_id if logged in
+	expiresAt := time.Now().Add(5 * time.Minute) // 5 minute expiration as per your spec
 	oauthSession := &models.OAuthSession{
 		State:        authResp.State,
 		CodeVerifier: authResp.CodeVerifier, // Empty for TikTok, populated for X
 		Platform:     platformType,
+		UserID:       loggedInUserID, // nil for new users, user_id for logged-in users
 		ExpiresAt:    expiresAt,
 	}
 
@@ -105,16 +116,6 @@ func (h *MultiPlatformAuthHandler) handlePlatformLogin(c *gin.Context, platformT
 			"error": "Failed to initialize OAuth session",
 		})
 		return
-	}
-
-	// Store state in cookie as backup (for backward compatibility)
-	c.SetCookie("oauth_state", authResp.State, 600, "/", "", false, true)
-	c.SetCookie("oauth_platform", string(platformType), 600, "/", "", false, true)
-
-	// Check if user is already logged in via oauth_jwt cookie (set by frontend)
-	jwtCookie, err := c.Cookie("oauth_jwt")
-	if err == nil && jwtCookie != "" {
-		log.Printf("Preserving user session through OAuth flow")
 	}
 
 	log.Printf("Redirecting to %s OAuth: state=%s", platformType, authResp.State[:10]+"...")
@@ -224,29 +225,25 @@ func (h *MultiPlatformAuthHandler) handlePlatformCallback(c *gin.Context, platfo
 		return
 	}
 
-	// Check if user already exists by trying to get from JWT cookie (if logged in)
+	// Get user ID from oauth session (stored when user initiated OAuth flow)
 	var userID int64
-	jwtCookie, err := c.Cookie("oauth_jwt")
-	if err == nil && jwtCookie != "" {
-		// User was logged in, extract user ID from JWT token
-		userIDFromJWT, jwtErr := h.extractUserIDFromJWT(jwtCookie)
-		if jwtErr == nil {
-			userID = userIDFromJWT
-			log.Printf("Adding %s connection to existing user %d", platformType, userID)
-		} else {
-			log.Printf("Failed to extract user ID from JWT: %v", jwtErr)
-		}
+	if oauthSession.UserID != nil {
+		// User was logged in when they started OAuth - connect platform to their account
+		userID = *oauthSession.UserID
+		log.Printf("✓ Adding %s connection to existing user %d", platformType, userID)
 	}
 
 	if userID == 0 {
+		log.Printf("No existing session, checking if %s user %s already exists in database...", platformType, userInfo.PlatformUserID)
 		// Check if this platform user already exists
 		existingUser, err := h.userRepo.GetByPlatformUserID(platformType, userInfo.PlatformUserID)
 		if err == nil && existingUser != nil {
 			// User exists, use existing user
 			userID = existingUser.ID
-			log.Printf("Found existing user %d for %s user %s", userID, platformType, userInfo.PlatformUserID)
+			log.Printf("✓ Found existing user %d for %s user %s", userID, platformType, userInfo.PlatformUserID)
 		} else {
 			// Create new user
+			log.Printf("Creating new user for %s user %s", platformType, userInfo.PlatformUserID)
 			user := &models.User{
 				Platform:       platformType,
 				PlatformUserID: userInfo.PlatformUserID,
@@ -318,11 +315,6 @@ func (h *MultiPlatformAuthHandler) handlePlatformCallback(c *gin.Context, platfo
 	}
 
 	log.Printf("%s authentication successful for user %d", platformType, userID)
-
-	// Clear OAuth cookies
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
-	c.SetCookie("oauth_platform", "", -1, "/", "", false, true)
-	c.SetCookie("oauth_jwt", "", -1, "/", "", false, true)
 
 	// Redirect to frontend with token
 	frontendURL := h.config.Server.FrontendURL + "/callback?token=" + jwtToken
@@ -433,40 +425,6 @@ func (h *MultiPlatformAuthHandler) createJWTSession(user *models.User) (string, 
 	}
 
 	return tokenString, nil
-}
-
-// extractUserIDFromJWT extracts the user ID from a JWT token string
-func (h *MultiPlatformAuthHandler) extractUserIDFromJWT(tokenString string) (int64, error) {
-	// Parse token
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Validate signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(h.config.JWT.Secret), nil
-	})
-
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse JWT: %w", err)
-	}
-
-	if !token.Valid {
-		return 0, fmt.Errorf("token is invalid or expired")
-	}
-
-	// Extract claims
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return 0, fmt.Errorf("invalid token claims")
-	}
-
-	// Extract user ID
-	userIDFloat, ok := claims["user_id"].(float64)
-	if !ok {
-		return 0, fmt.Errorf("invalid user ID in token")
-	}
-
-	return int64(userIDFloat), nil
 }
 
 // GetCurrentUser returns the current user's information with connected platforms

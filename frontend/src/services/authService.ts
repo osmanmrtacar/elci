@@ -11,32 +11,89 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080
 export const authService = {
   // Initiate TikTok OAuth login
   initiateTikTokLogin: async () => {
-    // If user is logged in, store JWT in cookie for backend to read
+    // If user is logged in, make API call with Authorization header
+    // Backend will detect logged-in user and connect platform to existing account
     const token = localStorage.getItem("auth_token");
     if (token) {
-      // Store JWT in cookie so backend can preserve session through OAuth flow
-      document.cookie = `oauth_jwt=${token}; path=/; max-age=600; SameSite=Lax`;
+      // Call login endpoint with auth header - backend will store user_id in oauth session
+      try {
+        const response = await api.get("/api/v1/auth/tiktok/login", {
+          maxRedirects: 0,
+          validateStatus: (status) => status === 307 || status === 302,
+        });
+        // Follow the redirect
+        if (response.headers.location) {
+          window.location.href = response.headers.location;
+        }
+      } catch (error: any) {
+        // Axios treats redirects as errors with maxRedirects: 0
+        if (error.response?.status === 307 || error.response?.status === 302) {
+          const redirectUrl = error.response.headers.location;
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+          }
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      // Not logged in - simple redirect for new user registration
+      window.location.href = `${API_BASE_URL}/api/v1/auth/tiktok/login`;
     }
-    // Use simple redirect (no CORS issues)
-    window.location.href = `${API_BASE_URL}/api/v1/auth/tiktok/login`;
   },
 
   // Initiate X (Twitter) OAuth login
   initiateXLogin: async () => {
     const token = localStorage.getItem("auth_token");
     if (token) {
-      document.cookie = `oauth_jwt=${token}; path=/; max-age=600; SameSite=Lax`;
+      try {
+        const response = await api.get("/api/v1/auth/x/login", {
+          maxRedirects: 0,
+          validateStatus: (status) => status === 307 || status === 302,
+        });
+        if (response.headers.location) {
+          window.location.href = response.headers.location;
+        }
+      } catch (error: any) {
+        if (error.response?.status === 307 || error.response?.status === 302) {
+          const redirectUrl = error.response.headers.location;
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+          }
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      window.location.href = `${API_BASE_URL}/api/v1/auth/x/login`;
     }
-    window.location.href = `${API_BASE_URL}/api/v1/auth/x/login`;
   },
 
   // Initiate Instagram OAuth login (via Facebook)
   initiateInstagramLogin: async () => {
     const token = localStorage.getItem("auth_token");
     if (token) {
-      document.cookie = `oauth_jwt=${token}; path=/; max-age=600; SameSite=Lax`;
+      try {
+        const response = await api.get("/api/v1/auth/instagram/login", {
+          maxRedirects: 0,
+          validateStatus: (status) => status === 307 || status === 302,
+        });
+        if (response.headers.location) {
+          window.location.href = response.headers.location;
+        }
+      } catch (error: any) {
+        if (error.response?.status === 307 || error.response?.status === 302) {
+          const redirectUrl = error.response.headers.location;
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+          }
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      window.location.href = `${API_BASE_URL}/api/v1/auth/instagram/login`;
     }
-    window.location.href = `${API_BASE_URL}/api/v1/auth/instagram/login`;
   },
 
   // Generic platform login (backward compatibility)
