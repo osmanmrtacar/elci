@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import PostForm from '../components/post/PostForm'
 import PostHistory from '../components/post/PostHistory'
+import PlatformConnections from '../components/platform/PlatformConnections'
 import Footer from '../components/Footer'
 
 const DashboardPage = () => {
@@ -44,6 +45,9 @@ const DashboardPage = () => {
 
       <main className="dashboard-main">
         <div className="dashboard-grid">
+          <div className="dashboard-section full-width">
+            <PlatformConnections />
+          </div>
           <div className="dashboard-section">
             <PostForm onPostCreated={handlePostCreated} />
           </div>

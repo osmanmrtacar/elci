@@ -5,18 +5,76 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 
 export const authService = {
   // Initiate TikTok OAuth login
-  initiateTikTokLogin: () => {
-    window.location.href = `${API_BASE_URL}/api/v1/auth/tiktok/login`
+  initiateTikTokLogin: async () => {
+    // Use axios to send request with auth header (if logged in)
+    // The backend will redirect us to the OAuth provider
+    try {
+      const response = await api.get('/api/v1/auth/tiktok/login', {
+        maxRedirects: 0, // Don't follow redirects automatically
+        validateStatus: (status) => status === 307 || status === 302, // Accept redirect status
+      })
+      // Extract redirect URL from response headers
+      const redirectUrl = response.headers.location
+      if (redirectUrl) {
+        window.location.href = redirectUrl
+      }
+    } catch (error: any) {
+      // If it's a redirect response, follow it
+      if (error.response?.status === 307 || error.response?.status === 302) {
+        const redirectUrl = error.response.headers.location
+        if (redirectUrl) {
+          window.location.href = redirectUrl
+        }
+      } else {
+        throw error
+      }
+    }
   },
 
   // Initiate X (Twitter) OAuth login
-  initiateXLogin: () => {
-    window.location.href = `${API_BASE_URL}/api/v1/auth/x/login`
+  initiateXLogin: async () => {
+    try {
+      const response = await api.get('/api/v1/auth/x/login', {
+        maxRedirects: 0,
+        validateStatus: (status) => status === 307 || status === 302,
+      })
+      const redirectUrl = response.headers.location
+      if (redirectUrl) {
+        window.location.href = redirectUrl
+      }
+    } catch (error: any) {
+      if (error.response?.status === 307 || error.response?.status === 302) {
+        const redirectUrl = error.response.headers.location
+        if (redirectUrl) {
+          window.location.href = redirectUrl
+        }
+      } else {
+        throw error
+      }
+    }
   },
 
   // Initiate Instagram OAuth login (via Facebook)
-  initiateInstagramLogin: () => {
-    window.location.href = `${API_BASE_URL}/api/v1/auth/instagram/login`
+  initiateInstagramLogin: async () => {
+    try {
+      const response = await api.get('/api/v1/auth/instagram/login', {
+        maxRedirects: 0,
+        validateStatus: (status) => status === 307 || status === 302,
+      })
+      const redirectUrl = response.headers.location
+      if (redirectUrl) {
+        window.location.href = redirectUrl
+      }
+    } catch (error: any) {
+      if (error.response?.status === 307 || error.response?.status === 302) {
+        const redirectUrl = error.response.headers.location
+        if (redirectUrl) {
+          window.location.href = redirectUrl
+        }
+      } else {
+        throw error
+      }
+    }
   },
 
   // Generic platform login (backward compatibility)

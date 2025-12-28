@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -109,6 +110,14 @@ func (h *MultiPlatformAuthHandler) handlePlatformLogin(c *gin.Context, platformT
 	// Store state in cookie as backup (for backward compatibility)
 	c.SetCookie("oauth_state", authResp.State, 600, "/", "", false, true)
 	c.SetCookie("oauth_platform", string(platformType), 600, "/", "", false, true)
+
+	// If user is already logged in, store their JWT token to preserve session through OAuth flow
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+		c.SetCookie("oauth_jwt", jwtToken, 600, "/", "", false, true)
+		log.Printf("Preserving user session through OAuth flow")
+	}
 
 	log.Printf("Redirecting to %s OAuth: state=%s", platformType, authResp.State[:10]+"...")
 
@@ -217,14 +226,21 @@ func (h *MultiPlatformAuthHandler) handlePlatformCallback(c *gin.Context, platfo
 		return
 	}
 
-	// Check if user already exists by trying to get from JWT (if logged in)
+	// Check if user already exists by trying to get from JWT cookie (if logged in)
 	var userID int64
-	existingUserID, err := middleware.GetUserID(c)
-	if err == nil {
-		// User is already logged in, add new platform connection
-		userID = existingUserID
-		log.Printf("Adding %s connection to existing user %d", platformType, userID)
-	} else {
+	jwtCookie, err := c.Cookie("oauth_jwt")
+	if err == nil && jwtCookie != "" {
+		// User was logged in, extract user ID from JWT token
+		userIDFromJWT, jwtErr := h.extractUserIDFromJWT(jwtCookie)
+		if jwtErr == nil {
+			userID = userIDFromJWT
+			log.Printf("Adding %s connection to existing user %d", platformType, userID)
+		} else {
+			log.Printf("Failed to extract user ID from JWT: %v", jwtErr)
+		}
+	}
+
+	if userID == 0 {
 		// Check if this platform user already exists
 		existingUser, err := h.userRepo.GetByPlatformUserID(platformType, userInfo.PlatformUserID)
 		if err == nil && existingUser != nil {
@@ -308,6 +324,7 @@ func (h *MultiPlatformAuthHandler) handlePlatformCallback(c *gin.Context, platfo
 	// Clear OAuth cookies
 	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
 	c.SetCookie("oauth_platform", "", -1, "/", "", false, true)
+	c.SetCookie("oauth_jwt", "", -1, "/", "", false, true)
 
 	// Redirect to frontend with token
 	frontendURL := h.config.Server.FrontendURL + "/callback?token=" + jwtToken
@@ -418,6 +435,40 @@ func (h *MultiPlatformAuthHandler) createJWTSession(user *models.User) (string, 
 	}
 
 	return tokenString, nil
+}
+
+// extractUserIDFromJWT extracts the user ID from a JWT token string
+func (h *MultiPlatformAuthHandler) extractUserIDFromJWT(tokenString string) (int64, error) {
+	// Parse token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Validate signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(h.config.JWT.Secret), nil
+	})
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse JWT: %w", err)
+	}
+
+	if !token.Valid {
+		return 0, fmt.Errorf("token is invalid or expired")
+	}
+
+	// Extract claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return 0, fmt.Errorf("invalid token claims")
+	}
+
+	// Extract user ID
+	userIDFloat, ok := claims["user_id"].(float64)
+	if !ok {
+		return 0, fmt.Errorf("invalid user ID in token")
+	}
+
+	return int64(userIDFloat), nil
 }
 
 // GetCurrentUser returns the current user's information with connected platforms

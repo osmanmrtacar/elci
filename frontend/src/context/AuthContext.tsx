@@ -7,9 +7,9 @@ interface AuthContextType {
   connectedPlatforms: PlatformConnection[]
   isAuthenticated: boolean
   isLoading: boolean
-  loginTikTok: () => void
-  loginX: () => void
-  loginInstagram: () => void
+  loginTikTok: () => Promise<void>
+  loginX: () => Promise<void>
+  loginInstagram: () => Promise<void>
   logout: () => void
   disconnectPlatform: (platform: Platform) => Promise<void>
   refreshPlatforms: () => Promise<void>
@@ -66,16 +66,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(false)
   }, [refreshPlatforms])
 
-  const loginTikTok = () => {
-    authService.initiateTikTokLogin()
+  const loginTikTok = async () => {
+    await authService.initiateTikTokLogin()
   }
 
-  const loginX = () => {
-    authService.initiateXLogin()
+  const loginX = async () => {
+    await authService.initiateXLogin()
   }
 
-  const loginInstagram = () => {
-    authService.initiateInstagramLogin()
+  const loginInstagram = async () => {
+    await authService.initiateInstagramLogin()
   }
 
   const logout = async () => {

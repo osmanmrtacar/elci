@@ -210,6 +210,10 @@
   border: 1px solid var(--gray-light);
 }
 
+.dashboard-section.full-width {
+  grid-column: 1 / -1;
+}
+
 /* Post Form */
 .post-form-container h2 {
   margin-bottom: 1.5rem;
