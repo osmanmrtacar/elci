@@ -79,14 +79,34 @@ func (h *MultiPlatformAuthHandler) handlePlatformLogin(c *gin.Context, platformT
 		return
 	}
 
-	// Check if user is already logged in (check for JWT token in Authorization header)
+	// Check if user is already logged in (check for session_token cookie)
 	var loggedInUserID *int64
-	userID, err := middleware.GetUserID(c)
-	if err == nil {
-		// User is logged in - will connect platform to existing account
-		loggedInUserID = &userID
-		log.Printf("User %d will connect %s to their existing account", userID, platformType)
-	} else {
+
+	// Try to get JWT from session_token cookie (set by frontend before redirect)
+	sessionToken, cookieErr := c.Cookie("session_token")
+	if cookieErr == nil && sessionToken != "" {
+		// Validate and extract user ID from JWT
+		token, parseErr := jwt.Parse(sessionToken, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(h.config.JWT.Secret), nil
+		})
+
+		if parseErr == nil && token.Valid {
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				if userIDFloat, ok := claims["user_id"].(float64); ok {
+					userID := int64(userIDFloat)
+					loggedInUserID = &userID
+					log.Printf("User %d will connect %s to their existing account", userID, platformType)
+				}
+			}
+		} else {
+			log.Printf("Invalid session token in cookie: %v", parseErr)
+		}
+	}
+
+	if loggedInUserID == nil {
 		log.Printf("New user registration flow for %s", platformType)
 	}
 
@@ -117,6 +137,9 @@ func (h *MultiPlatformAuthHandler) handlePlatformLogin(c *gin.Context, platformT
 		})
 		return
 	}
+
+	// Clear the session_token cookie (user_id is now stored in oauth_session)
+	c.SetCookie("session_token", "", -1, "/", "", false, true)
 
 	log.Printf("Redirecting to %s OAuth: state=%s", platformType, authResp.State[:10]+"...")
 
