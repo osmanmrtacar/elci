@@ -76,6 +76,61 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 	}
 }
 
+// OptionalAuthMiddleware attempts to validate JWT tokens but doesn't block request if missing/invalid
+func OptionalAuthMiddleware(jwtSecret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get token from Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		// Extract token from "Bearer <token>"
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.Next()
+			return
+		}
+
+		tokenString := parts[1]
+
+		// Parse and validate token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(jwtSecret), nil
+		})
+
+		if err != nil || !token.Valid {
+			// Invalid token, just proceed without user_id
+			c.Next()
+			return
+		}
+
+		// Extract claims
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.Next()
+			return
+		}
+
+		// Extract user ID from claims
+		userIDFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			c.Next()
+			return
+		}
+
+		// Set user ID in context
+		c.Set("user_id", int64(userIDFloat))
+
+		c.Next()
+	}
+}
+
 // GetUserID extracts the user ID from the Gin context
 func GetUserID(c *gin.Context) (int64, error) {
 	userID, exists := c.Get("user_id")

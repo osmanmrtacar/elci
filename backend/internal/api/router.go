@@ -101,8 +101,9 @@ func SetupRouter(cfg *config.Config, db *database.DB) *gin.Engine {
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
-		// Auth routes (no auth middleware)
+		// Auth routes (no auth middleware required, but will use it if present)
 		auth := v1.Group("/auth")
+		auth.Use(middleware.OptionalAuthMiddleware(cfg.JWT.Secret))
 		{
 			// Multi-platform auth routes
 			auth.GET("/tiktok/login", multiPlatformAuthHandler.TikTokLogin)
