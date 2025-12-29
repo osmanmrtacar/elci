@@ -6,63 +6,43 @@ import {
   User,
 } from "../types/user";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:8080";
+
 
 export const authService = {
   // Initiate TikTok OAuth login
   initiateTikTokLogin: async () => {
-    // If user is logged in, make API call with Authorization header
-    // Backend will detect logged-in user and connect platform to existing account
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      // Call login endpoint with auth header - backend will store user_id in oauth session
-      try {
-        const response = await api.get("/api/v1/auth/tiktok/login");
-        // Check for URL in JSON response
-        if (response.data && response.data.url) {
-            window.location.href = response.data.url;
-        }
-      } catch (error: any) {
-        throw error;
+    try {
+      const response = await api.get("/api/v1/auth/tiktok/login");
+      // Check for URL in JSON response
+      if (response.data && response.data.url) {
+        window.location.href = response.data.url;
       }
-    } else {
-      // Not logged in - simple redirect for new user registration
-      window.location.href = `${API_BASE_URL}/api/v1/auth/tiktok/login`;
+    } catch (error: any) {
+      throw error;
     }
   },
 
   // Initiate X (Twitter) OAuth login
   initiateXLogin: async () => {
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      try {
-        const response = await api.get("/api/v1/auth/x/login");
-        if (response.data && response.data.url) {
-          window.location.href = response.data.url;
-        }
-      } catch (error: any) {
-        throw error;
+    try {
+      const response = await api.get("/api/v1/auth/x/login");
+      if (response.data && response.data.url) {
+        window.location.href = response.data.url;
       }
-    } else {
-      window.location.href = `${API_BASE_URL}/api/v1/auth/x/login`;
+    } catch (error: any) {
+      throw error;
     }
   },
 
   // Initiate Instagram OAuth login (via Facebook)
   initiateInstagramLogin: async () => {
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      try {
-        const response = await api.get("/api/v1/auth/instagram/login");
-        if (response.data && response.data.url) {
-          window.location.href = response.data.url;
-        }
-      } catch (error: any) {
-        throw error;
+    try {
+      const response = await api.get("/api/v1/auth/instagram/login");
+      if (response.data && response.data.url) {
+        window.location.href = response.data.url;
       }
-    } else {
-      window.location.href = `${API_BASE_URL}/api/v1/auth/instagram/login`;
+    } catch (error: any) {
+      throw error;
     }
   },
 
