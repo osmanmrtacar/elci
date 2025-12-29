@@ -19,20 +19,12 @@ export const authService = {
       // Call login endpoint with auth header - backend will store user_id in oauth session
       try {
         const response = await api.get("/api/v1/auth/tiktok/login");
-        // Follow the redirect
-        if (response.headers.location) {
-          window.location.href = response.headers.location;
+        // Check for URL in JSON response
+        if (response.data && response.data.url) {
+            window.location.href = response.data.url;
         }
       } catch (error: any) {
-        // Axios treats redirects as errors with maxRedirects: 0
-        if (error.response?.status === 307 || error.response?.status === 302) {
-          const redirectUrl = error.response.headers.location;
-          if (redirectUrl) {
-            window.location.href = redirectUrl;
-          }
-        } else {
-          throw error;
-        }
+        throw error;
       }
     } else {
       // Not logged in - simple redirect for new user registration
@@ -46,18 +38,11 @@ export const authService = {
     if (token) {
       try {
         const response = await api.get("/api/v1/auth/x/login");
-        if (response.headers.location) {
-          window.location.href = response.headers.location;
+        if (response.data && response.data.url) {
+          window.location.href = response.data.url;
         }
       } catch (error: any) {
-        if (error.response?.status === 307 || error.response?.status === 302) {
-          const redirectUrl = error.response.headers.location;
-          if (redirectUrl) {
-            window.location.href = redirectUrl;
-          }
-        } else {
-          throw error;
-        }
+        throw error;
       }
     } else {
       window.location.href = `${API_BASE_URL}/api/v1/auth/x/login`;
@@ -70,20 +55,11 @@ export const authService = {
     if (token) {
       try {
         const response = await api.get("/api/v1/auth/instagram/login");
-        console.log("got response");
-        console.log(response.headers.location);
-        if (response.headers.location) {
-          window.location.href = response.headers.location;
+        if (response.data && response.data.url) {
+          window.location.href = response.data.url;
         }
       } catch (error: any) {
-        if (error.response?.status === 307 || error.response?.status === 302) {
-          const redirectUrl = error.response.headers.location;
-          if (redirectUrl) {
-            window.location.href = redirectUrl;
-          }
-        } else {
-          throw error;
-        }
+        throw error;
       }
     } else {
       window.location.href = `${API_BASE_URL}/api/v1/auth/instagram/login`;

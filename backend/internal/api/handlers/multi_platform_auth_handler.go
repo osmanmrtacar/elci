@@ -120,8 +120,10 @@ func (h *MultiPlatformAuthHandler) handlePlatformLogin(c *gin.Context, platformT
 
 	log.Printf("Redirecting to %s OAuth: state=%s", platformType, authResp.State[:10]+"...")
 
-	// Redirect to platform OAuth page
-	c.Redirect(http.StatusTemporaryRedirect, authResp.URL)
+	// Return auth URL in JSON response
+	c.JSON(http.StatusOK, gin.H{
+		"url": authResp.URL,
+	})
 }
 
 // TikTokCallback handles the OAuth callback from TikTok
