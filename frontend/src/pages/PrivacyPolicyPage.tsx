@@ -10,12 +10,12 @@ const PrivacyPolicyPage = () => {
         <section>
           <h2>Introduction</h2>
           <p>
-            Welcome to our Social Media Publisher application ("Service", "we", "us", or "our").
+            Welcome to Elci.io ("Service", "Application", "we", "us", or "our").
             This Privacy Policy explains how we collect, use, disclose, and safeguard your information
-            when you use our application that integrates with TikTok, Instagram (Meta), and X (formerly Twitter).
+            when you use Elci.io, our social media publisher application that integrates with TikTok, Instagram (Meta), and X (formerly Twitter).
           </p>
           <p>
-            By using our Service, you agree to the collection and use of information in accordance with this policy.
+            By using Elci.io, you agree to the collection and use of information in accordance with this policy.
           </p>
         </section>
 
@@ -71,7 +71,7 @@ const PrivacyPolicyPage = () => {
             <li>Authenticate your identity across platforms</li>
             <li>Process and publish your content to selected platforms</li>
             <li>Monitor post status and provide publishing confirmations</li>
-            <li>Maintain and improve our Service</li>
+            <li>Maintain and improve Elci.io</li>
             <li>Provide customer support</li>
             <li>Detect and prevent fraud or abuse</li>
           </ul>
@@ -81,7 +81,7 @@ const PrivacyPolicyPage = () => {
           <h2>Data Sharing and Third Parties</h2>
 
           <h3>Third-Party Platforms</h3>
-          <p>We share your information with the following third-party platforms only as necessary to provide our Service:</p>
+          <p>Elci.io shares your information with the following third-party platforms only as necessary to provide our Service:</p>
 
           <p><strong>TikTok:</strong></p>
           <ul>
@@ -173,7 +173,7 @@ const PrivacyPolicyPage = () => {
         <section>
           <h2>Children's Privacy</h2>
           <p>
-            Our Service is not intended for users under 13 years of age. We do not knowingly collect information
+            Elci.io is not intended for users under 13 years of age. We do not knowingly collect information
             from children under 13. We prohibit sharing or processing data that belongs to or relates to minors,
             in compliance with platform policies.
           </p>
@@ -183,10 +183,7 @@ const PrivacyPolicyPage = () => {
           <h2>Contact Us</h2>
           <p>If you have questions about this Privacy Policy or wish to exercise your rights, please contact us:</p>
           <ul>
-            <li><strong>Email:</strong> [your-email@domain.com]</li>
-            <li><strong>Address:</strong> [Your Business Address]</li>
-            <li><strong>GDPR Contact:</strong> [gdpr@yourdomain.com]</li>
-            <li><strong>CCPA Contact:</strong> [ccpa@yourdomain.com]</li>
+            <li><strong>Email:</strong> [support@wattawatch.com]</li>
           </ul>
         </section>
 

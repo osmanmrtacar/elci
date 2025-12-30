@@ -10,15 +10,15 @@ const TermsOfServicePage = () => {
         <section>
           <h2>1. Agreement to Terms</h2>
           <p>
-            By accessing or using our Social Media Publisher application ("Service", "we", "us", or "our"),
-            you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these
-            Terms, you may not access the Service.
+            By accessing or using Elci.io ("Service", "Application", "we", "us", or "our"),
+            our social media publisher application, you agree to be bound by these Terms of Service ("Terms").
+            If you disagree with any part of these Terms, you may not access Elci.io.
           </p>
         </section>
 
         <section>
           <h2>2. Description of Service</h2>
-          <p>Our Service enables you to:</p>
+          <p>Elci.io enables you to:</p>
           <ul>
             <li>Connect your social media accounts (TikTok, Instagram, X/Twitter)</li>
             <li>Upload and publish content to multiple platforms simultaneously</li>
@@ -33,8 +33,8 @@ const TermsOfServicePage = () => {
           <h3>Age Requirements</h3>
           <p>You must be at least:</p>
           <ul>
-            <li><strong>13 years old</strong> to use this Service</li>
-            <li><strong>18 years old</strong> (or the age of majority in your jurisdiction) to use the Service without parental consent</li>
+            <li><strong>13 years old</strong> to use Elci.io</li>
+            <li><strong>18 years old</strong> (or the age of majority in your jurisdiction) to use Elci.io without parental consent</li>
             <li>Of legal age to enter into a binding contract in your jurisdiction</li>
           </ul>
 
@@ -115,16 +115,16 @@ const TermsOfServicePage = () => {
           <h3>Prohibited Uses</h3>
           <p>You agree not to:</p>
           <ul>
-            <li>Use the Service for surveillance, tracking, or monitoring of users</li>
+            <li>Use Elci.io for surveillance, tracking, or monitoring of users</li>
             <li>Investigate or track users or their content</li>
             <li>Monitor sensitive events (protests, rallies, community organizing)</li>
             <li>Scrape or harvest data from platforms</li>
             <li>Reverse engineer or attempt to access source code</li>
             <li>Bypass rate limits or security measures</li>
             <li>Resell or redistribute platform data</li>
-            <li>Use the Service to spam or send unsolicited messages</li>
+            <li>Use Elci.io to spam or send unsolicited messages</li>
             <li>Impersonate others or misrepresent your affiliation</li>
-            <li>Interfere with or disrupt the Service or servers</li>
+            <li>Interfere with or disrupt Elci.io or servers</li>
           </ul>
         </section>
 
@@ -132,7 +132,7 @@ const TermsOfServicePage = () => {
           <h2>6. Content Publishing</h2>
 
           <h3>Publishing Process</h3>
-          <p>When you publish content through our Service:</p>
+          <p>When you publish content through Elci.io:</p>
           <ol>
             <li>You select platforms for publication</li>
             <li>You review and confirm content and settings</li>
@@ -198,7 +198,7 @@ const TermsOfServicePage = () => {
 
         <section>
           <h2>11. Platform Compliance</h2>
-          <p>We comply with developer requirements for:</p>
+          <p>Elci.io complies with developer requirements for:</p>
 
           <p><strong>TikTok:</strong></p>
           <ul>
@@ -223,21 +223,19 @@ const TermsOfServicePage = () => {
           <h2>12. Contact Information</h2>
           <p>For questions about these Terms, please contact us:</p>
           <ul>
-            <li><strong>Email:</strong> [your-email@domain.com]</li>
-            <li><strong>Address:</strong> [Your Business Address]</li>
-            <li><strong>Legal Inquiries:</strong> [legal@yourdomain.com]</li>
+            <li><strong>Email:</strong> [support@wattawatch.com]</li>
           </ul>
         </section>
 
         <section>
           <h2>13. Acknowledgment</h2>
-          <p>By using our Service, you acknowledge that:</p>
+          <p>By using Elci.io, you acknowledge that:</p>
           <ul>
             <li>You have read and understood these Terms of Service</li>
             <li>You have read and understood our Privacy Policy</li>
             <li>You agree to comply with all platform Terms of Service</li>
             <li>You have the authority to enter into this agreement</li>
-            <li>You will use the Service in compliance with all applicable laws</li>
+            <li>You will use Elci.io in compliance with all applicable laws</li>
           </ul>
         </section>
 
