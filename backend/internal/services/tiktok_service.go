@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	tiktokTokenURL       = "https://open.tiktokapis.com/v2/oauth/token/"
-	tiktokUserInfoURL    = "https://open.tiktokapis.com/v2/user/info/"
-	tiktokPublishURL     = "https://open.tiktokapis.com/v2/post/publish/video/init/"
-	tiktokPublishStatus  = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
-	tiktokUploadURL      = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
+	tiktokTokenURL      = "https://open.tiktokapis.com/v2/oauth/token/"
+	tiktokUserInfoURL   = "https://open.tiktokapis.com/v2/user/info/"
+	tiktokPublishURL    = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+	tiktokPublishStatus = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+	tiktokUploadURL     = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
 )
 
 type TikTokService struct {
@@ -231,18 +231,18 @@ type PublishStatusResponse struct {
 func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string, caption string) (*PublishVideoResponse, error) {
 	requestBody := map[string]interface{}{
 		"post_info": map[string]interface{}{
-			"title":          caption,
-			"privacy_level":  "SELF_ONLY", // Can be: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, SELF_ONLY
-			"disable_duet":   false,
-			"disable_comment": false,
-			"disable_stitch":  false,
+			"title":                    caption,
+			"privacy_level":            "PUBLIC_TO_EVERYONE", // Can be: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, SELF_ONLY
+			"disable_duet":             false,
+			"disable_comment":          false,
+			"disable_stitch":           false,
 			"video_cover_timestamp_ms": 1000,
 		},
 		"source_info": map[string]interface{}{
 			"source":    "PULL_FROM_URL",
 			"video_url": videoURL,
 		},
-		"post_mode": "DIRECT_POST",
+		"post_mode":  "DIRECT_POST",
 		"media_type": "VIDEO",
 	}
 
