@@ -230,14 +230,14 @@ type PublishStatusResponse struct {
 // PublishVideoFromURL publishes a video to TikTok from a URL
 func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string, caption string) (*PublishVideoResponse, error) {
 	requestBody := map[string]interface{}{
-		// "post_info": map[string]interface{}{
-		// 	"title":                    caption,
-		// 	"privacy_level":            "SELF_ONLY", // Can be: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, SELF_ONLY
-		// 	"disable_duet":             false,
-		// 	"disable_comment":          false,
-		// 	"disable_stitch":           false,
-		// 	"video_cover_timestamp_ms": 1000,
-		// },
+		"post_info": map[string]interface{}{
+			"title": caption,
+			// "privacy_level":            "SELF_ONLY", // Can be: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, SELF_ONLY
+			// "disable_duet":             false,
+			// "disable_comment":          false,
+			// "disable_stitch":           false,
+			// "video_cover_timestamp_ms": 1000,
+		},
 		"source_info": map[string]interface{}{
 			"source":    "PULL_FROM_URL",
 			"video_url": videoURL,
