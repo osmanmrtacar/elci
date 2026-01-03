@@ -242,7 +242,7 @@ func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string,
 			"source":    "PULL_FROM_URL",
 			"video_url": videoURL,
 		},
-		"post_mode":  "DIRECT_POST",
+		"post_mode":  "MEDIA_UPLOAD",
 		"media_type": "VIDEO",
 	}
 
