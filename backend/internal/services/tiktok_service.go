@@ -251,7 +251,7 @@ func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string,
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", tiktokPublishURL, bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", tiktokUploadURL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
