@@ -232,7 +232,7 @@ func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string,
 	requestBody := map[string]interface{}{
 		"post_info": map[string]interface{}{
 			"title":                    caption,
-			"privacy_level":            "PUBLIC_TO_EVERYONE", // Can be: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, SELF_ONLY
+			"privacy_level":            "SELF_ONLY", // Can be: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, SELF_ONLY
 			"disable_duet":             false,
 			"disable_comment":          false,
 			"disable_stitch":           false,
