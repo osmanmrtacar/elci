@@ -58,33 +58,69 @@ func (s *InstagramPlatformService) GenerateAuthURL() (AuthURLResponse, error) {
 }
 
 // ExchangeCodeForTokens exchanges an authorization code for tokens
+// This automatically exchanges the short-lived token for a long-lived token
 func (s *InstagramPlatformService) ExchangeCodeForTokens(code string, additionalParams map[string]string) (*TokenResponse, error) {
+	// Step 1: Exchange code for short-lived token (valid for 1 hour)
 	tokenResp, err := s.authService.ExchangeCodeForToken(code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
 
-	// Instagram tokens via Facebook are long-lived (60 days)
-	// Default to 60 days if not specified
-	expiresIn := tokenResp.ExpiresIn
+	// Step 2: Exchange short-lived token for long-lived token (valid for 60 days)
+	longLivedResp, err := s.authService.ExchangeLongLivedToken(tokenResp.AccessToken)
+	if err != nil {
+		// If long-lived exchange fails, fall back to short-lived token
+		fmt.Printf("WARNING: Failed to get long-lived token, using short-lived: %v\n", err)
+		expiresIn := tokenResp.ExpiresIn
+		if expiresIn == 0 {
+			expiresIn = 3600 // 1 hour for short-lived token
+		}
+		return &TokenResponse{
+			AccessToken:  tokenResp.AccessToken,
+			RefreshToken: tokenResp.AccessToken, // Use same token as refresh token for retry
+			ExpiresIn:    expiresIn,
+			TokenType:    "Bearer",
+			Scope:        "instagram_business_basic,instagram_business_content_publish",
+		}, nil
+	}
+
+	// Use long-lived token expiry (typically 60 days = 5184000 seconds)
+	expiresIn := longLivedResp.ExpiresIn
 	if expiresIn == 0 {
 		expiresIn = 60 * 24 * 60 * 60 // 60 days in seconds
 	}
 
 	return &TokenResponse{
-		AccessToken:  tokenResp.AccessToken,
-		RefreshToken: "", // Facebook doesn't provide refresh tokens for long-lived tokens
+		AccessToken:  longLivedResp.AccessToken,
+		RefreshToken: longLivedResp.AccessToken, // Instagram uses the same token for refresh
 		ExpiresIn:    expiresIn,
 		TokenType:    "Bearer",
-		Scope:        "business_management,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish",
+		Scope:        "instagram_business_basic,instagram_business_content_publish",
 	}, nil
 }
 
-// RefreshAccessToken refreshes an access token (Instagram uses long-lived tokens)
+// RefreshAccessToken refreshes an Instagram long-lived access token
+// Instagram long-lived tokens can be refreshed as long as they haven't expired
+// The refreshed token will be valid for another 60 days
 func (s *InstagramPlatformService) RefreshAccessToken(refreshToken string) (*TokenResponse, error) {
-	// Instagram/Facebook uses long-lived tokens that don't need refresh
-	// Tokens are valid for 60 days and should be re-obtained via OAuth
-	return nil, fmt.Errorf("Instagram tokens don't support refresh; re-authenticate via OAuth")
+	// Refresh the long-lived token
+	refreshedToken, err := s.authService.RefreshLongLivedToken(refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh Instagram token: %w", err)
+	}
+
+	expiresIn := refreshedToken.ExpiresIn
+	if expiresIn == 0 {
+		expiresIn = 60 * 24 * 60 * 60 // 60 days in seconds
+	}
+
+	return &TokenResponse{
+		AccessToken:  refreshedToken.AccessToken,
+		RefreshToken: refreshedToken.AccessToken, // Instagram uses the same token for refresh
+		ExpiresIn:    expiresIn,
+		TokenType:    "Bearer",
+		Scope:        "instagram_business_basic,instagram_business_content_publish",
+	}, nil
 }
 
 // GetUserInfo retrieves user information from Instagram

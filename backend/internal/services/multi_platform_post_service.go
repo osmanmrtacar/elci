@@ -249,19 +249,19 @@ type PostContent struct {
 
 // PostResponse contains the result of creating a post
 type PostResponse struct {
-	PostID     string
-	PublishID  string
-	Status     string
-	ShareURL   string
-	ErrorMsg   string
+	PostID    string
+	PublishID string
+	Status    string
+	ShareURL  string
+	ErrorMsg  string
 }
 
 // PostStatusResponse contains the current status of a post
 type PostStatusResponse struct {
-	Status         string
-	PostID         string
-	ShareURL       string
-	FailReason     string
+	Status          string
+	PostID          string
+	ShareURL        string
+	FailReason      string
 	ProgressPercent int
 }
 
@@ -273,10 +273,10 @@ type PlatformRegistry interface {
 }
 
 type MultiPlatformPostService struct {
-	postRepo                *models.PostRepository
-	tokenRepo               *models.TokenRepository
-	platformConnectionRepo  *models.PlatformConnectionRepository
-	platformRegistry        PlatformRegistry
+	postRepo               *models.PostRepository
+	tokenRepo              *models.TokenRepository
+	platformConnectionRepo *models.PlatformConnectionRepository
+	platformRegistry       PlatformRegistry
 }
 
 // NewMultiPlatformPostService creates a new multi-platform post service
@@ -303,8 +303,8 @@ type CreateMultiPlatformPostRequest struct {
 
 // CreateMultiPlatformPostResponse represents the response after creating posts
 type CreateMultiPlatformPostResponse struct {
-	Posts   []*models.Post       `json:"posts"`
-	Errors  map[string]string    `json:"errors,omitempty"`
+	Posts  []*models.Post    `json:"posts"`
+	Errors map[string]string `json:"errors,omitempty"`
 }
 
 // CreateMultiPlatformPost creates a post on multiple platforms simultaneously
@@ -423,24 +423,54 @@ func (s *MultiPlatformPostService) processPlatformPost(postID int64, userID int6
 	}
 
 	// Check if token needs refresh
-	if time.Now().After(token.ExpiresAt) {
-		log.Printf("Token expired for user %d on %s, refreshing...", userID, plt)
+	// Refresh proactively if token will expire within 7 days (for Instagram long-lived tokens)
+	// or if it's already expired
+	tokenExpiresSoon := time.Now().Add(7 * 24 * time.Hour).After(token.ExpiresAt)
+	tokenExpired := time.Now().After(token.ExpiresAt)
+
+	if tokenExpired {
+		// Token is already expired - for Instagram, this means re-authentication is required
+		log.Printf("Token already expired for user %d on %s at %v", userID, plt, token.ExpiresAt)
+
+		// Try to refresh anyway (works for TikTok, may fail for Instagram)
 		tokenResp, err := platformService.RefreshAccessToken(token.RefreshToken)
 		if err != nil {
-			log.Printf("Failed to refresh token: %v", err)
-			s.postRepo.UpdateStatus(postID, models.PostStatusFailed, "Failed to refresh access token")
+			log.Printf("Failed to refresh expired token: %v", err)
+			errorMsg := "Access token has expired. Please reconnect your account."
+			if plt == models.PlatformInstagram {
+				errorMsg = "Instagram access token has expired. Please disconnect and reconnect your Instagram account to continue posting."
+			}
+			s.postRepo.UpdateStatus(postID, models.PostStatusFailed, errorMsg)
 			mu.Lock()
-			errors[string(plt)] = "Failed to refresh access token"
+			errors[string(plt)] = errorMsg
 			mu.Unlock()
 			return
 		}
 
-		// Update token in database
+		// Token refresh succeeded
 		token.AccessToken = tokenResp.AccessToken
 		token.RefreshToken = tokenResp.RefreshToken
 		token.ExpiresAt = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 		if err := s.tokenRepo.CreateOrUpdateForPlatform(token); err != nil {
 			log.Printf("Failed to update token: %v", err)
+		}
+		log.Printf("Successfully refreshed expired token for user %d on %s", userID, plt)
+	} else if tokenExpiresSoon {
+		// Token will expire soon - refresh proactively
+		log.Printf("Token expiring soon for user %d on %s (expires at %v), refreshing proactively...", userID, plt, token.ExpiresAt)
+		tokenResp, err := platformService.RefreshAccessToken(token.RefreshToken)
+		if err != nil {
+			// Log warning but continue with existing token since it's still valid
+			log.Printf("Warning: Failed to proactively refresh token for %s: %v", plt, err)
+		} else {
+			// Update token in database
+			token.AccessToken = tokenResp.AccessToken
+			token.RefreshToken = tokenResp.RefreshToken
+			token.ExpiresAt = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+			if err := s.tokenRepo.CreateOrUpdateForPlatform(token); err != nil {
+				log.Printf("Failed to update token: %v", err)
+			}
+			log.Printf("Successfully refreshed token proactively for user %d on %s, new expiry: %v", userID, plt, token.ExpiresAt)
 		}
 	}
 
