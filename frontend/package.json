@@ -1,5 +1,5 @@
 {
-  "name": "sosyal-frontend",
+  "name": "elci-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -15,7 +15,9 @@
     "react-router-dom": "^6.21.0",
     "axios": "^1.6.2",
     "react-hook-form": "^7.49.2",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",
@@ -27,6 +29,9 @@
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.5"
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8.4.33",
+    "autoprefixer": "^10.4.17"
   }
 }

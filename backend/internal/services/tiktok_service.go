@@ -196,6 +196,17 @@ func (s *TikTokService) GetUserInfo(accessToken string) (*TikTokUserInfo, error)
 	return &userInfoResponse.Data.User, nil
 }
 
+// TikTokPostSettings represents settings for TikTok posts (required by TikTok UX Guidelines)
+type TikTokPostSettings struct {
+	Title          string // Video title
+	PrivacyLevel   string // PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, SELF_ONLY
+	AllowComment   bool   // Allow comments
+	AllowDuet      bool   // Allow duet
+	AllowStitch    bool   // Allow stitch
+	IsBrandContent bool   // Promoting own brand
+	IsBrandOrganic bool   // Paid partnership (branded content)
+}
+
 // PublishVideoRequest represents the request to publish a video
 type PublishVideoRequest struct {
 	VideoURL string
@@ -229,22 +240,43 @@ type PublishStatusResponse struct {
 }
 
 // PublishVideoFromURL publishes a video to TikTok from a URL
-func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string, caption string) (*PublishVideoResponse, error) {
+func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string, caption string, settings *TikTokPostSettings) (*PublishVideoResponse, error) {
+	// Build post_info with settings
+	postInfo := map[string]interface{}{
+		"title": caption, // Use caption as default title
+	}
+
+	// Apply TikTok settings if provided (required by TikTok UX Guidelines)
+	if settings != nil {
+		// Use provided title if available
+		if settings.Title != "" {
+			postInfo["title"] = settings.Title
+		}
+
+		// Privacy level (required - user must select, no default)
+		if settings.PrivacyLevel != "" {
+			postInfo["privacy_level"] = settings.PrivacyLevel
+		}
+
+		// Interaction settings (default: disabled per UX guidelines)
+		// TikTok API uses disable_ prefix (true = disabled)
+		postInfo["disable_comment"] = !settings.AllowComment
+		postInfo["disable_duet"] = !settings.AllowDuet
+		postInfo["disable_stitch"] = !settings.AllowStitch
+
+		// Commercial content disclosure
+		if settings.IsBrandContent || settings.IsBrandOrganic {
+			postInfo["brand_content_toggle"] = true
+			postInfo["brand_organic_toggle"] = settings.IsBrandOrganic
+		}
+	}
+
 	requestBody := map[string]interface{}{
-		"post_info": map[string]interface{}{
-			"title": caption,
-			// "privacy_level":            "SELF_ONLY", // Can be: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, SELF_ONLY
-			// "disable_duet":             false,
-			// "disable_comment":          false,
-			// "disable_stitch":           false,
-			// "video_cover_timestamp_ms": 1000,
-		},
+		"post_info": postInfo,
 		"source_info": map[string]interface{}{
 			"source":    "PULL_FROM_URL",
 			"video_url": videoURL,
 		},
-		// "post_mode":  "MEDIA_UPLOAD",
-		// "media_type": "VIDEO",
 	}
 
 	body, err := json.Marshal(requestBody)
@@ -336,16 +368,41 @@ func (s *TikTokService) GetPublishStatus(accessToken string, publishID string) (
 }
 
 // PublishPhotoFromURL publishes a photo post to TikTok from one or more image URLs
-func (s *TikTokService) PublishPhotoFromURL(accessToken string, imageURLs []string, caption string) (*PublishVideoResponse, error) {
+func (s *TikTokService) PublishPhotoFromURL(accessToken string, imageURLs []string, caption string, settings *TikTokPostSettings) (*PublishVideoResponse, error) {
 	if len(imageURLs) == 0 {
 		return nil, fmt.Errorf("at least one image URL is required")
 	}
 
+	// Build post_info with settings
+	postInfo := map[string]interface{}{
+		"title":       caption,
+		"description": caption,
+	}
+
+	// Apply TikTok settings if provided (required by TikTok UX Guidelines)
+	if settings != nil {
+		// Use provided title if available
+		if settings.Title != "" {
+			postInfo["title"] = settings.Title
+		}
+
+		// Privacy level (required - user must select, no default)
+		if settings.PrivacyLevel != "" {
+			postInfo["privacy_level"] = settings.PrivacyLevel
+		}
+
+		// Interaction settings (default: disabled per UX guidelines)
+		postInfo["disable_comment"] = !settings.AllowComment
+
+		// Commercial content disclosure
+		if settings.IsBrandContent || settings.IsBrandOrganic {
+			postInfo["brand_content_toggle"] = true
+			postInfo["brand_organic_toggle"] = settings.IsBrandOrganic
+		}
+	}
+
 	requestBody := map[string]interface{}{
-		"post_info": map[string]interface{}{
-			"title":       caption,
-			"description": caption,
-		},
+		"post_info": postInfo,
 		"source_info": map[string]interface{}{
 			"source":            "PULL_FROM_URL",
 			"photo_cover_index": 0,

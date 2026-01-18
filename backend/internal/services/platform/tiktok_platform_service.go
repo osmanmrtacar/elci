@@ -151,16 +151,30 @@ func (s *TikTokPlatformService) CreatePost(accessToken string, content PostConte
 		return nil, fmt.Errorf("media URL is required for TikTok posts")
 	}
 
+	// Convert platform TikTokSettings to services TikTokSettings
+	var tiktokSettings *services.TikTokPostSettings
+	if content.TikTokSettings != nil {
+		tiktokSettings = &services.TikTokPostSettings{
+			Title:          content.TikTokSettings.Title,
+			PrivacyLevel:   content.TikTokSettings.PrivacyLevel,
+			AllowComment:   content.TikTokSettings.AllowComment,
+			AllowDuet:      content.TikTokSettings.AllowDuet,
+			AllowStitch:    content.TikTokSettings.AllowStitch,
+			IsBrandContent: content.TikTokSettings.IsBrandContent,
+			IsBrandOrganic: content.TikTokSettings.IsBrandOrganic,
+		}
+	}
+
 	var resp *services.PublishVideoResponse
 	var err error
 
 	// Detect media type and publish accordingly
 	if services.IsImageURL(mediaURL) {
 		// Photo post - TikTok accepts array of image URLs
-		resp, err = s.tiktokService.PublishPhotoFromURL(accessToken, []string{mediaURL}, content.Text)
+		resp, err = s.tiktokService.PublishPhotoFromURL(accessToken, []string{mediaURL}, content.Text, tiktokSettings)
 	} else {
 		// Video post
-		resp, err = s.tiktokService.PublishVideoFromURL(accessToken, mediaURL, content.Text)
+		resp, err = s.tiktokService.PublishVideoFromURL(accessToken, mediaURL, content.Text, tiktokSettings)
 	}
 
 	if err != nil {

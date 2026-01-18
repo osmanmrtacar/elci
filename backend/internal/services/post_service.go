@@ -67,8 +67,8 @@ func (s *PostService) processPost(postID int64, userID int64) {
 		return
 	}
 
-	// Publish video to TikTok
-	publishResponse, err := s.tiktokService.PublishVideoFromURL(accessToken, post.VideoURL, post.Caption)
+	// Publish video to TikTok (legacy code - uses nil for settings)
+	publishResponse, err := s.tiktokService.PublishVideoFromURL(accessToken, post.VideoURL, post.Caption, nil)
 	if err != nil {
 		log.Printf("Failed to publish video to TikTok: %v", err)
 		s.postRepo.UpdateStatus(postID, models.PostStatusFailed, fmt.Sprintf("TikTok error: %v", err))

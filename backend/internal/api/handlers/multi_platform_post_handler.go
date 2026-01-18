@@ -22,11 +22,23 @@ func NewMultiPlatformPostHandler(postService *services.MultiPlatformPostService)
 	}
 }
 
+// TikTokSettings represents TikTok-specific post settings (required by TikTok UX Guidelines)
+type TikTokSettings struct {
+	Title          string `json:"title,omitempty"`           // Video title
+	PrivacyLevel   string `json:"privacy_level,omitempty"`   // PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, SELF_ONLY
+	AllowComment   bool   `json:"allow_comment"`             // Allow comments (default: false)
+	AllowDuet      bool   `json:"allow_duet"`                // Allow duet (default: false)
+	AllowStitch    bool   `json:"allow_stitch"`              // Allow stitch (default: false)
+	IsBrandContent bool   `json:"is_brand_content"`          // Promoting own brand
+	IsBrandOrganic bool   `json:"is_brand_organic"`          // Paid partnership
+}
+
 // CreatePostRequest represents the request to create a post on multiple platforms
 type CreateMultiPlatformPostRequest struct {
-	Platforms []string `json:"platforms" binding:"required"` // ["tiktok", "x"]
-	MediaURL  string   `json:"media_url" binding:"required"` // Video/image URL
-	Caption   string   `json:"caption"`                      // Post text/caption
+	Platforms      []string        `json:"platforms" binding:"required"` // ["tiktok", "x"]
+	MediaURL       string          `json:"media_url" binding:"required"` // Video/image URL
+	Caption        string          `json:"caption"`                      // Post text/caption
+	TikTokSettings *TikTokSettings `json:"tiktok_settings,omitempty"`    // TikTok-specific settings
 }
 
 // CreatePost creates a new post on one or more platforms
@@ -67,6 +79,19 @@ func (h *MultiPlatformPostHandler) CreatePost(c *gin.Context) {
 		Platforms: platforms,
 		MediaURL:  req.MediaURL,
 		Caption:   req.Caption,
+	}
+
+	// Add TikTok settings if provided
+	if req.TikTokSettings != nil {
+		serviceReq.TikTokSettings = &services.TikTokSettings{
+			Title:          req.TikTokSettings.Title,
+			PrivacyLevel:   req.TikTokSettings.PrivacyLevel,
+			AllowComment:   req.TikTokSettings.AllowComment,
+			AllowDuet:      req.TikTokSettings.AllowDuet,
+			AllowStitch:    req.TikTokSettings.AllowStitch,
+			IsBrandContent: req.TikTokSettings.IsBrandContent,
+			IsBrandOrganic: req.TikTokSettings.IsBrandOrganic,
+		}
 	}
 
 	// Create posts

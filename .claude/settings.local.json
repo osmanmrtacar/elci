@@ -29,7 +29,12 @@
       "Bash(go run:*)",
       "Bash(grep:*)",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__query-docs"
+      "mcp__context7__query-docs",
+      "mcp__figma-desktop__get_design_context",
+      "WebFetch(domain:developers.tiktok.com)",
+      "mcp__figma-desktop__get_screenshot",
+      "Bash(find:*)",
+      "Bash(ls:*)"
     ]
   }
 }

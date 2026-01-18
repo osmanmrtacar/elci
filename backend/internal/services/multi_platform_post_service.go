@@ -121,6 +121,41 @@ func (a *platformServiceAdapter) CreatePost(accessToken string, content PostCont
 	}
 	mediaIDsField.Set(mediaIDsSlice)
 
+	// Set TikTok settings if provided (for TikTok platform)
+	if content.TikTokSettings != nil {
+		tiktokSettingsField := contentValue.FieldByName("TikTokSettings")
+		if tiktokSettingsField.IsValid() && tiktokSettingsField.CanSet() {
+			// Get the type of TikTokSettings struct in the platform package
+			tiktokSettingsType := tiktokSettingsField.Type().Elem()
+			tiktokSettingsValue := reflect.New(tiktokSettingsType).Elem()
+
+			// Set each field
+			if f := tiktokSettingsValue.FieldByName("Title"); f.IsValid() {
+				f.SetString(content.TikTokSettings.Title)
+			}
+			if f := tiktokSettingsValue.FieldByName("PrivacyLevel"); f.IsValid() {
+				f.SetString(content.TikTokSettings.PrivacyLevel)
+			}
+			if f := tiktokSettingsValue.FieldByName("AllowComment"); f.IsValid() {
+				f.SetBool(content.TikTokSettings.AllowComment)
+			}
+			if f := tiktokSettingsValue.FieldByName("AllowDuet"); f.IsValid() {
+				f.SetBool(content.TikTokSettings.AllowDuet)
+			}
+			if f := tiktokSettingsValue.FieldByName("AllowStitch"); f.IsValid() {
+				f.SetBool(content.TikTokSettings.AllowStitch)
+			}
+			if f := tiktokSettingsValue.FieldByName("IsBrandContent"); f.IsValid() {
+				f.SetBool(content.TikTokSettings.IsBrandContent)
+			}
+			if f := tiktokSettingsValue.FieldByName("IsBrandOrganic"); f.IsValid() {
+				f.SetBool(content.TikTokSettings.IsBrandOrganic)
+			}
+
+			tiktokSettingsField.Set(tiktokSettingsValue.Addr())
+		}
+	}
+
 	// Call the method
 	results := method.Call([]reflect.Value{
 		reflect.ValueOf(accessToken),
@@ -240,11 +275,23 @@ type UserInfo struct {
 	Email          string
 }
 
+// TikTokSettings represents TikTok-specific post settings (required by TikTok UX Guidelines)
+type TikTokSettings struct {
+	Title          string // Video title
+	PrivacyLevel   string // PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, SELF_ONLY
+	AllowComment   bool   // Allow comments (default: false per UX guidelines)
+	AllowDuet      bool   // Allow duet (default: false per UX guidelines)
+	AllowStitch    bool   // Allow stitch (default: false per UX guidelines)
+	IsBrandContent bool   // Promoting own brand
+	IsBrandOrganic bool   // Paid partnership (branded content)
+}
+
 // PostContent represents the content to be posted
 type PostContent struct {
-	Text     string
-	MediaURL string
-	MediaIDs []string
+	Text           string
+	MediaURL       string
+	MediaIDs       []string
+	TikTokSettings *TikTokSettings // TikTok-specific settings
 }
 
 // PostResponse contains the result of creating a post
@@ -296,9 +343,10 @@ func NewMultiPlatformPostService(
 
 // CreateMultiPlatformPostRequest represents a request to create a post on multiple platforms
 type CreateMultiPlatformPostRequest struct {
-	Platforms []models.Platform `json:"platforms"` // ["tiktok", "x"]
-	MediaURL  string            `json:"media_url"` // Video/image URL
-	Caption   string            `json:"caption"`   // Post text/caption
+	Platforms      []models.Platform `json:"platforms"`                 // ["tiktok", "x"]
+	MediaURL       string            `json:"media_url"`                 // Video/image URL
+	Caption        string            `json:"caption"`                   // Post text/caption
+	TikTokSettings *TikTokSettings   `json:"tiktok_settings,omitempty"` // TikTok-specific settings
 }
 
 // CreateMultiPlatformPostResponse represents the response after creating posts
@@ -373,7 +421,12 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 		posts = append(posts, post)
 
 		// Process post asynchronously for each platform
-		go s.processPlatformPost(post.ID, userID, plt, &mu, errors)
+		// Pass TikTok settings only for TikTok platform
+		var tiktokSettings *TikTokSettings
+		if plt == models.PlatformTikTok && req.TikTokSettings != nil {
+			tiktokSettings = req.TikTokSettings
+		}
+		go s.processPlatformPost(post.ID, userID, plt, tiktokSettings, &mu, errors)
 	}
 
 	response := &CreateMultiPlatformPostResponse{
@@ -388,7 +441,7 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 }
 
 // processPlatformPost handles posting to a specific platform asynchronously
-func (s *MultiPlatformPostService) processPlatformPost(postID int64, userID int64, plt models.Platform, mu *sync.Mutex, errors map[string]string) {
+func (s *MultiPlatformPostService) processPlatformPost(postID int64, userID int64, plt models.Platform, tiktokSettings *TikTokSettings, mu *sync.Mutex, errors map[string]string) {
 	// Update status to processing
 	if err := s.postRepo.UpdateStatus(postID, models.PostStatusProcessing, ""); err != nil {
 		log.Printf("Failed to update post %d status to processing: %v", postID, err)
@@ -498,9 +551,10 @@ func (s *MultiPlatformPostService) processPlatformPost(postID int64, userID int6
 
 	// Create post on platform
 	postContent := PostContent{
-		Text:     post.Caption,
-		MediaURL: post.VideoURL,
-		MediaIDs: []string{},
+		Text:           post.Caption,
+		MediaURL:       post.VideoURL,
+		MediaIDs:       []string{},
+		TikTokSettings: tiktokSettings,
 	}
 
 	if mediaID != "" {

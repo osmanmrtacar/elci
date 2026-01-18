@@ -51,11 +51,23 @@ type UserInfo struct {
 	Email          string // Email (if available)
 }
 
+// TikTokSettings represents TikTok-specific post settings (required by TikTok UX Guidelines)
+type TikTokSettings struct {
+	Title          string // Video title
+	PrivacyLevel   string // PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, SELF_ONLY
+	AllowComment   bool   // Allow comments (default: false per UX guidelines)
+	AllowDuet      bool   // Allow duet (default: false per UX guidelines)
+	AllowStitch    bool   // Allow stitch (default: false per UX guidelines)
+	IsBrandContent bool   // Promoting own brand
+	IsBrandOrganic bool   // Paid partnership (branded content)
+}
+
 // PostContent represents the content to be posted
 type PostContent struct {
-	Text     string   // Post text/caption
-	MediaURL string   // URL of media to download and upload
-	MediaIDs []string // Pre-uploaded media IDs (for platforms like X)
+	Text           string          // Post text/caption
+	MediaURL       string          // URL of media to download and upload
+	MediaIDs       []string        // Pre-uploaded media IDs (for platforms like X)
+	TikTokSettings *TikTokSettings // TikTok-specific settings (optional)
 }
 
 // PostResponse contains the result of creating a post
