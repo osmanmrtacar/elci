@@ -6,7 +6,7 @@ import { authService } from '../../services/authService'
 const OAuthCallback = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { setUser, refreshPlatforms } = useAuth()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -26,6 +26,9 @@ const OAuthCallback = () => {
           // Save user to localStorage and update context
           authService.saveAuth(token, currentUser)
           setUser(currentUser)
+
+          // Refresh connected platforms to update UI immediately
+          await refreshPlatforms()
 
           navigate('/success')
         } catch (err: any) {
@@ -57,6 +60,8 @@ const OAuthCallback = () => {
         const data = await authService.handleCallback(code, state)
         authService.saveAuth(data.token, data.user)
         setUser(data.user)
+        // Refresh connected platforms to update UI immediately
+        await refreshPlatforms()
         navigate('/success')
       } catch (err: any) {
         console.error('Callback error:', err)
@@ -66,7 +71,7 @@ const OAuthCallback = () => {
     }
 
     handleCallback()
-  }, [searchParams, navigate, setUser])
+  }, [searchParams, navigate, setUser, refreshPlatforms])
 
   return (
     <div className="callback-container">
