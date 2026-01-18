@@ -19,7 +19,7 @@ func NewInstagramPostService(authService *InstagramAuthService, mediaService *In
 	}
 }
 
-// CreatePost creates and publishes a post to Instagram
+// CreatePost creates and publishes a post to Instagram (video as Reel)
 func (s *InstagramPostService) CreatePost(accessToken string, videoURL string, caption string) (string, string, error) {
 	// Get Instagram user info (need IG user ID for posting)
 	userInfo, err := s.authService.GetInstagramUserInfo(accessToken)
@@ -38,6 +38,30 @@ func (s *InstagramPostService) CreatePost(accessToken string, videoURL string, c
 	)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to upload and publish: %w", err)
+	}
+
+	return mediaID, permalink, nil
+}
+
+// CreatePhotoPost creates and publishes a photo post to Instagram
+func (s *InstagramPostService) CreatePhotoPost(accessToken string, imageURL string, caption string) (string, string, error) {
+	// Get Instagram user info (need IG user ID for posting)
+	userInfo, err := s.authService.GetInstagramUserInfo(accessToken)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get Instagram user info: %w", err)
+	}
+
+	log.Printf("Posting photo to Instagram account: @%s (ID: %s)", userInfo.Username, userInfo.ID)
+
+	// Upload and publish the photo
+	mediaID, permalink, err := s.mediaService.UploadAndPublishPhoto(
+		accessToken,
+		userInfo.ID,
+		imageURL,
+		caption,
+	)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to upload and publish photo: %w", err)
 	}
 
 	return mediaID, permalink, nil

@@ -28,10 +28,10 @@ type ServerConfig struct {
 }
 
 type TikTokConfig struct {
-	ClientKey     string
-	ClientSecret  string
-	RedirectURI   string
-	Scopes        []string
+	ClientKey    string
+	ClientSecret string
+	RedirectURI  string
+	Scopes       []string
 }
 
 type XConfig struct {
@@ -76,10 +76,10 @@ func Load() (*Config, error) {
 			Environment: getEnv("ENVIRONMENT", "development"),
 		},
 		TikTok: TikTokConfig{
-			ClientKey:     getEnv("TIKTOK_CLIENT_KEY", ""),
-			ClientSecret:  getEnv("TIKTOK_CLIENT_SECRET", ""),
-			RedirectURI:   getEnv("TIKTOK_REDIRECT_URI", ""),
-			Scopes:        strings.Split(getEnv("TIKTOK_SCOPES", "user.info.basic,video.publish"), ","),
+			ClientKey:    getEnv("TIKTOK_CLIENT_KEY", ""),
+			ClientSecret: getEnv("TIKTOK_CLIENT_SECRET", ""),
+			RedirectURI:  getEnv("TIKTOK_REDIRECT_URI", ""),
+			Scopes:       strings.Split(getEnv("TIKTOK_SCOPES", "user.info.basic,video.publish"), ","),
 		},
 		X: XConfig{
 			ClientID:     getEnv("X_CLIENT_ID", ""),

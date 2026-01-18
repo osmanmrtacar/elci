@@ -14,8 +14,8 @@ import (
 )
 
 type TokenService struct {
-	config       *config.Config
-	tokenRepo    *models.TokenRepository
+	config        *config.Config
+	tokenRepo     *models.TokenRepository
 	tiktokService *TikTokService
 }
 

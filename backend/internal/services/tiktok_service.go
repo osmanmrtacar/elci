@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	tiktokTokenURL      = "https://open.tiktokapis.com/v2/oauth/token/"
-	tiktokUserInfoURL   = "https://open.tiktokapis.com/v2/user/info/"
-	tiktokPublishURL    = "https://open.tiktokapis.com/v2/post/publish/video/init/"
-	tiktokPublishStatus = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
-	tiktokUploadURL     = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
+	tiktokTokenURL       = "https://open.tiktokapis.com/v2/oauth/token/"
+	tiktokUserInfoURL    = "https://open.tiktokapis.com/v2/user/info/"
+	tiktokPublishURL     = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+	tiktokPublishStatus  = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+	tiktokUploadURL      = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
+	tiktokContentInitURL = "https://open.tiktokapis.com/v2/post/publish/content/init/"
 )
 
 type TikTokService struct {
@@ -332,4 +333,65 @@ func (s *TikTokService) GetPublishStatus(accessToken string, publishID string) (
 	}
 
 	return &statusResponse, nil
+}
+
+// PublishPhotoFromURL publishes a photo post to TikTok from one or more image URLs
+func (s *TikTokService) PublishPhotoFromURL(accessToken string, imageURLs []string, caption string) (*PublishVideoResponse, error) {
+	if len(imageURLs) == 0 {
+		return nil, fmt.Errorf("at least one image URL is required")
+	}
+
+	requestBody := map[string]interface{}{
+		"post_info": map[string]interface{}{
+			"title":       caption,
+			"description": caption,
+		},
+		"source_info": map[string]interface{}{
+			"source":            "PULL_FROM_URL",
+			"photo_cover_index": 0,
+			"photo_images":      imageURLs,
+		},
+		"post_mode":  "DIRECT_POST",
+		"media_type": "PHOTO",
+	}
+
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", tiktokContentInitURL, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("TikTok API error: %s - %s", resp.Status, string(responseBody))
+	}
+
+	var publishResponse PublishVideoResponse
+	if err := json.Unmarshal(responseBody, &publishResponse); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check for API errors (TikTok uses "ok" to indicate success)
+	if publishResponse.Error.Code != "" && publishResponse.Error.Code != "ok" {
+		return nil, fmt.Errorf("TikTok API error: %s - %s", publishResponse.Error.Code, publishResponse.Error.Message)
+	}
+
+	return &publishResponse, nil
 }

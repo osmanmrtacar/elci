@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	maxVideoSize        = 300 * 1024 * 1024 // 300 MB in bytes (TikTok limit is 287.6 MB)
-	minVideoDuration    = 3                  // seconds
-	maxVideoDuration    = 600                // 10 minutes in seconds
-	tiktokChunkSize     = 5 * 1024 * 1024    // 5 MB chunks for upload
+	maxVideoSize     = 300 * 1024 * 1024 // 300 MB in bytes (TikTok limit is 287.6 MB)
+	minVideoDuration = 3                 // seconds
+	maxVideoDuration = 600               // 10 minutes in seconds
+	tiktokChunkSize  = 5 * 1024 * 1024   // 5 MB chunks for upload
 )
 
 type VideoService struct {

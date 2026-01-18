@@ -19,7 +19,7 @@ type Post struct {
 	ID             int64      `json:"id"`
 	UserID         int64      `json:"user_id"`
 	Platform       Platform   `json:"platform"`
-	TikTokPostID   string     `json:"tiktok_post_id,omitempty"`   // Deprecated: Use PlatformPostID
+	TikTokPostID   string     `json:"tiktok_post_id,omitempty"` // Deprecated: Use PlatformPostID
 	PlatformPostID string     `json:"platform_post_id,omitempty"`
 	VideoURL       string     `json:"video_url"`
 	Caption        string     `json:"caption"`

@@ -138,21 +138,31 @@ func (s *TikTokPlatformService) UploadMedia(accessToken, mediaURL string) (strin
 	return mediaURL, nil
 }
 
-// CreatePost publishes a video to TikTok
+// CreatePost publishes a video or photo to TikTok
+// Automatically detects media type from URL and uses appropriate method
 func (s *TikTokPlatformService) CreatePost(accessToken string, content PostContent) (*PostResponse, error) {
-	// TikTok requires a video URL
-	videoURL := content.MediaURL
-	if videoURL == "" && len(content.MediaIDs) > 0 {
+	mediaURL := content.MediaURL
+	if mediaURL == "" && len(content.MediaIDs) > 0 {
 		// If MediaIDs provided (from UploadMedia), use the first one as URL
-		videoURL = content.MediaIDs[0]
+		mediaURL = content.MediaIDs[0]
 	}
 
-	if videoURL == "" {
-		return nil, fmt.Errorf("video URL is required for TikTok posts")
+	if mediaURL == "" {
+		return nil, fmt.Errorf("media URL is required for TikTok posts")
 	}
 
-	// Publish video
-	resp, err := s.tiktokService.PublishVideoFromURL(accessToken, videoURL, content.Text)
+	var resp *services.PublishVideoResponse
+	var err error
+
+	// Detect media type and publish accordingly
+	if services.IsImageURL(mediaURL) {
+		// Photo post - TikTok accepts array of image URLs
+		resp, err = s.tiktokService.PublishPhotoFromURL(accessToken, []string{mediaURL}, content.Text)
+	} else {
+		// Video post
+		resp, err = s.tiktokService.PublishVideoFromURL(accessToken, mediaURL, content.Text)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create post: %w", err)
 	}

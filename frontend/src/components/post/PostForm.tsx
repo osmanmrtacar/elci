@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { postService } from '../../services/postService'
 import { useAuth } from '../../context/AuthContext'
 import { Platform } from '../../types/user'
@@ -7,13 +7,48 @@ interface PostFormProps {
   onPostCreated: () => void
 }
 
+type MediaType = 'video' | 'image' | 'unknown'
+
+const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.heif']
+const videoExtensions = ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.m4v', '.ts', '.3gp']
+
+const detectMediaType = (url: string): MediaType => {
+  if (!url) return 'unknown'
+  const lowerUrl = url.toLowerCase()
+
+  // Extract path from URL
+  try {
+    const parsedUrl = new URL(url)
+    const path = parsedUrl.pathname.toLowerCase()
+
+    if (imageExtensions.some(ext => path.endsWith(ext))) {
+      return 'image'
+    }
+    if (videoExtensions.some(ext => path.endsWith(ext))) {
+      return 'video'
+    }
+  } catch {
+    // If URL parsing fails, try simple extension check
+    if (imageExtensions.some(ext => lowerUrl.endsWith(ext))) {
+      return 'image'
+    }
+    if (videoExtensions.some(ext => lowerUrl.endsWith(ext))) {
+      return 'video'
+    }
+  }
+
+  return 'unknown'
+}
+
 const PostForm = ({ onPostCreated }: PostFormProps) => {
   const { connectedPlatforms } = useAuth()
-  const [videoUrl, setVideoUrl] = useState('')
+  const [mediaUrl, setMediaUrl] = useState('')
   const [caption, setCaption] = useState('')
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const detectedMediaType = useMemo(() => detectMediaType(mediaUrl), [mediaUrl])
 
   const handlePlatformToggle = (platform: Platform) => {
     setSelectedPlatforms(prev =>
@@ -27,8 +62,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
     e.preventDefault()
     setError(null)
 
-    if (!videoUrl.trim()) {
-      setError('Please enter a video URL')
+    if (!mediaUrl.trim()) {
+      setError('Please enter a media URL')
       return
     }
 
@@ -42,12 +77,12 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
     try {
       await postService.createPost({
         platforms: selectedPlatforms,
-        media_url: videoUrl,
+        media_url: mediaUrl,
         caption: caption,
       })
 
       // Reset form
-      setVideoUrl('')
+      setMediaUrl('')
       setCaption('')
       setSelectedPlatforms([])
 
@@ -66,17 +101,28 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       <h2>Create New Post</h2>
       <form onSubmit={handleSubmit} className="post-form">
         <div className="form-group">
-          <label htmlFor="videoUrl">Video URL *</label>
+          <label htmlFor="mediaUrl">Media URL *</label>
           <input
             type="url"
-            id="videoUrl"
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            placeholder="https://example.com/video.mp4"
+            id="mediaUrl"
+            value={mediaUrl}
+            onChange={(e) => setMediaUrl(e.target.value)}
+            placeholder="https://example.com/media.jpg or video.mp4"
             disabled={isSubmitting}
             required
           />
-          <small>Enter a publicly accessible video URL (MP4, MOV, or WEBM)</small>
+          <small>
+            Enter a publicly accessible media URL
+            {detectedMediaType === 'image' && (
+              <span className="media-type-badge image"> - Photo detected</span>
+            )}
+            {detectedMediaType === 'video' && (
+              <span className="media-type-badge video"> - Video detected</span>
+            )}
+          </small>
+          <small className="supported-formats">
+            Supported: JPG, PNG, GIF, WEBP (photos) | MP4, MOV, WEBM (videos)
+          </small>
         </div>
 
         <div className="form-group">
@@ -152,6 +198,30 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       </form>
 
       <style>{`
+        .media-type-badge {
+          font-weight: 600;
+          padding: 2px 6px;
+          border-radius: 4px;
+          margin-left: 4px;
+        }
+
+        .media-type-badge.image {
+          background: #e3f2fd;
+          color: #1565c0;
+        }
+
+        .media-type-badge.video {
+          background: #fce4ec;
+          color: #c62828;
+        }
+
+        .supported-formats {
+          display: block;
+          color: #888;
+          font-size: 11px;
+          margin-top: 4px;
+        }
+
         .platform-checkboxes {
           display: flex;
           flex-direction: column;

@@ -15,19 +15,19 @@ import (
 )
 
 type AuthService struct {
-	config       *config.Config
-	tokenService *TokenService
+	config        *config.Config
+	tokenService  *TokenService
 	tiktokService *TikTokService
-	userRepo     *models.UserRepository
+	userRepo      *models.UserRepository
 }
 
 // NewAuthService creates a new auth service
 func NewAuthService(cfg *config.Config, tokenService *TokenService, tiktokService *TikTokService, userRepo *models.UserRepository) *AuthService {
 	return &AuthService{
-		config:       cfg,
-		tokenService: tokenService,
+		config:        cfg,
+		tokenService:  tokenService,
 		tiktokService: tiktokService,
-		userRepo:     userRepo,
+		userRepo:      userRepo,
 	}
 }
 

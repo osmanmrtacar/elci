@@ -1,6 +1,7 @@
 import { Platform } from './user'
 
 export type PostStatus = 'pending' | 'processing' | 'published' | 'failed'
+export type MediaType = 'video' | 'image'
 
 export interface Post {
   id: number
@@ -10,6 +11,7 @@ export interface Post {
   platform: Platform
   platform_post_id?: string
   share_url?: string
+  media_type?: MediaType
   // Legacy fields (for backward compatibility)
   tiktok_post_id?: string
   tiktok_url?: string

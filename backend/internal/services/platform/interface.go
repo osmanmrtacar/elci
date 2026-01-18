@@ -60,18 +60,18 @@ type PostContent struct {
 
 // PostResponse contains the result of creating a post
 type PostResponse struct {
-	PostID     string // Platform-specific post ID (immediate for X, after processing for TikTok)
-	PublishID  string // Async publish ID (for TikTok)
-	Status     string // Post status (pending, processing, published)
-	ShareURL   string // URL to view the post on the platform
-	ErrorMsg   string // Error message if post creation failed
+	PostID    string // Platform-specific post ID (immediate for X, after processing for TikTok)
+	PublishID string // Async publish ID (for TikTok)
+	Status    string // Post status (pending, processing, published)
+	ShareURL  string // URL to view the post on the platform
+	ErrorMsg  string // Error message if post creation failed
 }
 
 // PostStatusResponse contains the current status of a post
 type PostStatusResponse struct {
-	Status         string // pending, processing, published, failed
-	PostID         string // Platform-specific post ID
-	ShareURL       string // URL to view the post on the platform
-	FailReason     string // Reason for failure if status is failed
+	Status          string // pending, processing, published, failed
+	PostID          string // Platform-specific post ID
+	ShareURL        string // URL to view the post on the platform
+	FailReason      string // Reason for failure if status is failed
 	ProgressPercent int    // Progress percentage (for video processing)
 }

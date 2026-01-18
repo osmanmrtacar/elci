@@ -15,12 +15,12 @@ import (
 )
 
 type MultiPlatformAuthHandler struct {
-	config                  *config.Config
-	platformRegistry        *platform.PlatformRegistry
-	userRepo                *models.UserRepository
-	tokenRepo               *models.TokenRepository
-	platformConnectionRepo  *models.PlatformConnectionRepository
-	oauthSessionRepo        *models.OAuthSessionRepository
+	config                 *config.Config
+	platformRegistry       *platform.PlatformRegistry
+	userRepo               *models.UserRepository
+	tokenRepo              *models.TokenRepository
+	platformConnectionRepo *models.PlatformConnectionRepository
+	oauthSessionRepo       *models.OAuthSessionRepository
 }
 
 // NewMultiPlatformAuthHandler creates a new multi-platform auth handler
@@ -468,11 +468,11 @@ func (h *MultiPlatformAuthHandler) GetCurrentUser(c *gin.Context) {
 	// Return user info
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{
-			"id":                 user.ID,
-			"username":           user.Username,
-			"display_name":       user.DisplayName,
-			"avatar_url":         user.AvatarURL,
-			"created_at":         user.CreatedAt,
+			"id":                  user.ID,
+			"username":            user.Username,
+			"display_name":        user.DisplayName,
+			"avatar_url":          user.AvatarURL,
+			"created_at":          user.CreatedAt,
 			"connected_platforms": platforms,
 		},
 	})

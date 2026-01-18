@@ -173,8 +173,20 @@ func (s *InstagramPlatformService) UploadMedia(accessToken string, mediaURL stri
 }
 
 // CreatePost creates and publishes a post to Instagram
+// Automatically detects if media is a photo or video and uses appropriate method
 func (s *InstagramPlatformService) CreatePost(accessToken string, content PostContent) (*PostResponse, error) {
-	mediaID, permalink, err := s.postService.CreatePost(accessToken, content.MediaURL, content.Text)
+	var mediaID, permalink string
+	var err error
+
+	// Detect media type from URL
+	if services.IsImageURL(content.MediaURL) {
+		// Photo post
+		mediaID, permalink, err = s.postService.CreatePhotoPost(accessToken, content.MediaURL, content.Text)
+	} else {
+		// Video post (Reel)
+		mediaID, permalink, err = s.postService.CreatePost(accessToken, content.MediaURL, content.Text)
+	}
+
 	if err != nil {
 		return &PostResponse{
 			Status:   "failed",

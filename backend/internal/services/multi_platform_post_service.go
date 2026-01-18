@@ -348,6 +348,12 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 	errors := make(map[string]string)
 	var mu sync.Mutex
 
+	// Detect media type from URL
+	mediaType := "video"
+	if IsImageURL(req.MediaURL) {
+		mediaType = "image"
+	}
+
 	for _, plt := range req.Platforms {
 		post := &models.Post{
 			UserID:    userID,
@@ -355,7 +361,7 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 			VideoURL:  req.MediaURL,
 			Caption:   req.Caption,
 			Status:    models.PostStatusPending,
-			MediaType: "video", // Default, will be determined by platform
+			MediaType: mediaType,
 		}
 
 		if err := s.postRepo.Create(post); err != nil {
