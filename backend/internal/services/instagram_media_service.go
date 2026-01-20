@@ -28,8 +28,9 @@ type CreateMediaContainerResponse struct {
 
 // MediaStatusResponse represents the status of a media container
 type MediaStatusResponse struct {
-	ID         string `json:"id"`
-	StatusCode string `json:"status_code"`
+	ID           string `json:"id"`
+	StatusCode   string `json:"status_code"`
+	ErrorMessage string `json:"error_message,omitempty"` // Error details when status is ERROR
 }
 
 // PublishMediaResponse represents the response from publishing media
@@ -126,32 +127,32 @@ func (s *InstagramMediaService) CreatePhotoContainer(
 }
 
 // CheckMediaStatus checks the upload status of a media container
-// Returns the status code (FINISHED, IN_PROGRESS, ERROR, etc.)
-func (s *InstagramMediaService) CheckMediaStatus(accessToken string, containerID string) (string, error) {
-	apiURL := fmt.Sprintf("https://graph.instagram.com/%s?fields=status_code&access_token=%s",
+// Returns the status code (FINISHED, IN_PROGRESS, ERROR, etc.) and error message if any
+func (s *InstagramMediaService) CheckMediaStatus(accessToken string, containerID string) (string, string, error) {
+	apiURL := fmt.Sprintf("https://graph.instagram.com/%s?fields=status_code,error_message&access_token=%s",
 		containerID, accessToken)
 
 	resp, err := s.httpClient.Get(apiURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to check media status: %w", err)
+		return "", "", fmt.Errorf("failed to check media status: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
+		return "", "", fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("check media status failed (%d): %s", resp.StatusCode, string(body))
+		return "", "", fmt.Errorf("check media status failed (%d): %s", resp.StatusCode, string(body))
 	}
 
 	var statusResp MediaStatusResponse
 	if err := json.Unmarshal(body, &statusResp); err != nil {
-		return "", fmt.Errorf("failed to parse status response: %w", err)
+		return "", "", fmt.Errorf("failed to parse status response: %w", err)
 	}
 
-	return statusResp.StatusCode, nil
+	return statusResp.StatusCode, statusResp.ErrorMessage, nil
 }
 
 // WaitForMediaProcessing polls the media status until it's finished or times out
@@ -169,7 +170,7 @@ func (s *InstagramMediaService) WaitForMediaProcessing(
 			return false, fmt.Errorf("media processing timeout after %d seconds", maxWaitSeconds)
 		}
 
-		status, err := s.CheckMediaStatus(accessToken, containerID)
+		status, errorMsg, err := s.CheckMediaStatus(accessToken, containerID)
 		if err != nil {
 			return false, err
 		}
@@ -178,7 +179,10 @@ func (s *InstagramMediaService) WaitForMediaProcessing(
 		case "FINISHED":
 			return true, nil
 		case "ERROR":
-			return false, fmt.Errorf("media processing failed with status: ERROR")
+			if errorMsg != "" {
+				return false, fmt.Errorf("Instagram media processing failed: %s", errorMsg)
+			}
+			return false, fmt.Errorf("Instagram media processing failed with status: ERROR")
 		case "IN_PROGRESS":
 			// Continue waiting
 			time.Sleep(checkInterval)
