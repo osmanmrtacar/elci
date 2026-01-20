@@ -403,3 +403,43 @@ func (s *XMediaService) UploadFromURL(accessToken, mediaURL string) (string, err
 	fmt.Printf("Media uploaded successfully: %s\n", mediaID)
 	return mediaID, nil
 }
+
+// UploadMultipleFromURLs downloads and uploads multiple media files to X
+// X allows maximum 4 photos OR 1 video per tweet
+func (s *XMediaService) UploadMultipleFromURLs(accessToken string, mediaURLs []string) ([]string, error) {
+	if len(mediaURLs) == 0 {
+		return nil, fmt.Errorf("at least one media URL is required")
+	}
+
+	// Check if any URL is a video - videos can't be mixed with images
+	hasVideo := false
+	for _, url := range mediaURLs {
+		lowerURL := strings.ToLower(url)
+		if strings.HasSuffix(lowerURL, ".mp4") || strings.HasSuffix(lowerURL, ".mov") ||
+			strings.HasSuffix(lowerURL, ".webm") || strings.HasSuffix(lowerURL, ".ts") {
+			hasVideo = true
+			break
+		}
+	}
+
+	// Validate limits
+	if hasVideo && len(mediaURLs) > 1 {
+		return nil, fmt.Errorf("X only allows 1 video per tweet, got %d media items", len(mediaURLs))
+	}
+	if !hasVideo && len(mediaURLs) > 4 {
+		return nil, fmt.Errorf("X only allows maximum 4 photos per tweet, got %d", len(mediaURLs))
+	}
+
+	// Upload each media item
+	var mediaIDs []string
+	for i, mediaURL := range mediaURLs {
+		fmt.Printf("Uploading media %d/%d: %s\n", i+1, len(mediaURLs), mediaURL)
+		mediaID, err := s.UploadFromURL(accessToken, mediaURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upload media %d: %w", i+1, err)
+		}
+		mediaIDs = append(mediaIDs, mediaID)
+	}
+
+	return mediaIDs, nil
+}

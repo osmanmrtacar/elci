@@ -174,17 +174,37 @@ func (s *InstagramPlatformService) UploadMedia(accessToken string, mediaURL stri
 
 // CreatePost creates and publishes a post to Instagram
 // Automatically detects if media is a photo or video and uses appropriate method
+// Supports carousel posts with multiple images/videos
 func (s *InstagramPlatformService) CreatePost(accessToken string, content PostContent) (*PostResponse, error) {
 	var mediaID, permalink string
 	var err error
 
-	// Detect media type from URL
-	if services.IsImageURL(content.MediaURL) {
-		// Photo post
-		mediaID, permalink, err = s.postService.CreatePhotoPost(accessToken, content.MediaURL, content.Text)
+	// Check if this is a carousel post (multiple media URLs)
+	if len(content.MediaURLs) >= 2 {
+		// Convert MediaURLs to MediaItems for carousel
+		var mediaItems []services.MediaItem
+		for _, url := range content.MediaURLs {
+			mediaItems = append(mediaItems, services.MediaItem{
+				URL:     url,
+				IsVideo: !services.IsImageURL(url),
+			})
+		}
+		mediaID, permalink, err = s.postService.CreateCarouselPost(accessToken, mediaItems, content.Text)
 	} else {
-		// Video post (Reel)
-		mediaID, permalink, err = s.postService.CreatePost(accessToken, content.MediaURL, content.Text)
+		// Single media post
+		mediaURL := content.MediaURL
+		if mediaURL == "" && len(content.MediaURLs) > 0 {
+			mediaURL = content.MediaURLs[0]
+		}
+
+		// Detect media type from URL
+		if services.IsImageURL(mediaURL) {
+			// Photo post
+			mediaID, permalink, err = s.postService.CreatePhotoPost(accessToken, mediaURL, content.Text)
+		} else {
+			// Video post (Reel)
+			mediaID, permalink, err = s.postService.CreatePost(accessToken, mediaURL, content.Text)
+		}
 	}
 
 	if err != nil {

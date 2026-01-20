@@ -162,6 +162,7 @@ func (s *TikTokPlatformService) CreatePost(accessToken string, content PostConte
 			AllowStitch:    content.TikTokSettings.AllowStitch,
 			IsBrandContent: content.TikTokSettings.IsBrandContent,
 			IsBrandOrganic: content.TikTokSettings.IsBrandOrganic,
+			AutoAddMusic:   content.TikTokSettings.AutoAddMusic,
 		}
 	}
 
@@ -171,9 +172,14 @@ func (s *TikTokPlatformService) CreatePost(accessToken string, content PostConte
 	// Detect media type and publish accordingly
 	if services.IsImageURL(mediaURL) {
 		// Photo post - TikTok accepts array of image URLs
-		resp, err = s.tiktokService.PublishPhotoFromURL(accessToken, []string{mediaURL}, content.Text, tiktokSettings)
+		// Use MediaURLs if provided, otherwise use single mediaURL
+		imageURLs := content.MediaURLs
+		if len(imageURLs) == 0 {
+			imageURLs = []string{mediaURL}
+		}
+		resp, err = s.tiktokService.PublishPhotoFromURL(accessToken, imageURLs, content.Text, tiktokSettings)
 	} else {
-		// Video post
+		// Video post - TikTok only supports single video
 		resp, err = s.tiktokService.PublishVideoFromURL(accessToken, mediaURL, content.Text, tiktokSettings)
 	}
 

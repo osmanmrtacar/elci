@@ -31,12 +31,14 @@ type TikTokSettings struct {
 	AllowStitch    bool   `json:"allow_stitch"`              // Allow stitch (default: false)
 	IsBrandContent bool   `json:"is_brand_content"`          // Promoting own brand
 	IsBrandOrganic bool   `json:"is_brand_organic"`          // Paid partnership
+	AutoAddMusic   bool   `json:"auto_add_music"`            // Auto-add music (for TikTok photo posts)
 }
 
 // CreatePostRequest represents the request to create a post on multiple platforms
 type CreateMultiPlatformPostRequest struct {
 	Platforms      []string        `json:"platforms" binding:"required"` // ["tiktok", "x"]
-	MediaURL       string          `json:"media_url" binding:"required"` // Video/image URL
+	MediaURL       string          `json:"media_url"`                    // Primary video/image URL (for single media)
+	MediaURLs      []string        `json:"media_urls"`                   // Multiple media URLs (for carousel/multi-image)
 	Caption        string          `json:"caption"`                      // Post text/caption
 	TikTokSettings *TikTokSettings `json:"tiktok_settings,omitempty"`    // TikTok-specific settings
 }
@@ -63,9 +65,15 @@ func (h *MultiPlatformPostHandler) CreatePost(c *gin.Context) {
 		return
 	}
 
-	if req.MediaURL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "media_url is required"})
+	// Check that at least one media URL is provided
+	if req.MediaURL == "" && len(req.MediaURLs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "media_url or media_urls is required"})
 		return
+	}
+
+	// If media_url is provided but media_urls is empty, use media_url as the single item
+	if len(req.MediaURLs) == 0 && req.MediaURL != "" {
+		req.MediaURLs = []string{req.MediaURL}
 	}
 
 	// Convert platform strings to Platform type
@@ -78,6 +86,7 @@ func (h *MultiPlatformPostHandler) CreatePost(c *gin.Context) {
 	serviceReq := services.CreateMultiPlatformPostRequest{
 		Platforms: platforms,
 		MediaURL:  req.MediaURL,
+		MediaURLs: req.MediaURLs,
 		Caption:   req.Caption,
 	}
 
@@ -91,6 +100,7 @@ func (h *MultiPlatformPostHandler) CreatePost(c *gin.Context) {
 			AllowStitch:    req.TikTokSettings.AllowStitch,
 			IsBrandContent: req.TikTokSettings.IsBrandContent,
 			IsBrandOrganic: req.TikTokSettings.IsBrandOrganic,
+			AutoAddMusic:   req.TikTokSettings.AutoAddMusic,
 		}
 	}
 

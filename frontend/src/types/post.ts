@@ -16,6 +16,7 @@ export interface TikTokSettings {
   // Commercial content disclosure
   is_brand_content?: boolean        // "Your Brand" - promoting yourself
   is_brand_organic?: boolean        // "Branded Content" - paid partnership
+  auto_add_music?: boolean          // Auto-add music (for TikTok photo posts)
 }
 
 export interface Post {
@@ -40,7 +41,8 @@ export interface Post {
 
 export interface CreatePostRequest {
   platforms: Platform[]
-  media_url: string
+  media_url?: string                // Primary media URL (for single media)
+  media_urls?: string[]             // Multiple media URLs (for carousel/multi-image)
   caption: string
   // TikTok-specific settings
   tiktok_settings?: TikTokSettings

@@ -66,3 +66,35 @@ func (s *InstagramPostService) CreatePhotoPost(accessToken string, imageURL stri
 
 	return mediaID, permalink, nil
 }
+
+// CreateCarouselPost creates and publishes a carousel post to Instagram
+// Requires at least 2 media items and at most 10
+func (s *InstagramPostService) CreateCarouselPost(accessToken string, mediaItems []MediaItem, caption string) (string, string, error) {
+	if len(mediaItems) < 2 {
+		return "", "", fmt.Errorf("carousel requires at least 2 items, got %d", len(mediaItems))
+	}
+	if len(mediaItems) > 10 {
+		return "", "", fmt.Errorf("carousel supports maximum 10 items, got %d", len(mediaItems))
+	}
+
+	// Get Instagram user info (need IG user ID for posting)
+	userInfo, err := s.authService.GetInstagramUserInfo(accessToken)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get Instagram user info: %w", err)
+	}
+
+	log.Printf("Posting carousel (%d items) to Instagram account: @%s (ID: %s)", len(mediaItems), userInfo.Username, userInfo.ID)
+
+	// Upload and publish the carousel
+	mediaID, permalink, err := s.mediaService.UploadAndPublishCarousel(
+		accessToken,
+		userInfo.ID,
+		mediaItems,
+		caption,
+	)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to upload and publish carousel: %w", err)
+	}
+
+	return mediaID, permalink, nil
+}

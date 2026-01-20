@@ -330,3 +330,177 @@ func (s *InstagramMediaService) UploadAndPublishPhoto(
 
 	return mediaID, permalink, nil
 }
+
+// CreateCarouselItemContainer creates a container for a single item in a carousel
+// This marks the media as a carousel item (is_carousel_item=true)
+func (s *InstagramMediaService) CreateCarouselItemContainer(
+	accessToken string,
+	igUserID string,
+	mediaURL string,
+	isVideo bool,
+) (string, error) {
+	apiURL := fmt.Sprintf("https://graph.instagram.com/%s/media", igUserID)
+
+	params := url.Values{}
+	params.Set("is_carousel_item", "true")
+	params.Set("access_token", accessToken)
+
+	if isVideo {
+		params.Set("media_type", "VIDEO")
+		params.Set("video_url", mediaURL)
+	} else {
+		params.Set("image_url", mediaURL)
+	}
+
+	resp, err := s.httpClient.PostForm(apiURL, params)
+	if err != nil {
+		return "", fmt.Errorf("failed to create carousel item container: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("create carousel item container failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var containerResp CreateMediaContainerResponse
+	if err := json.Unmarshal(body, &containerResp); err != nil {
+		return "", fmt.Errorf("failed to parse container response: %w", err)
+	}
+
+	return containerResp.ID, nil
+}
+
+// CreateCarouselContainer creates a carousel container with multiple children
+// This is the main container that references all the individual item containers
+func (s *InstagramMediaService) CreateCarouselContainer(
+	accessToken string,
+	igUserID string,
+	childrenIDs []string,
+	caption string,
+) (string, error) {
+	if len(childrenIDs) < 2 {
+		return "", fmt.Errorf("carousel requires at least 2 items, got %d", len(childrenIDs))
+	}
+	if len(childrenIDs) > 10 {
+		return "", fmt.Errorf("carousel supports maximum 10 items, got %d", len(childrenIDs))
+	}
+
+	apiURL := fmt.Sprintf("https://graph.instagram.com/%s/media", igUserID)
+
+	params := url.Values{}
+	params.Set("media_type", "CAROUSEL")
+	params.Set("access_token", accessToken)
+
+	if caption != "" {
+		params.Set("caption", caption)
+	}
+
+	// Children is a comma-separated list of container IDs
+	childrenStr := ""
+	for i, id := range childrenIDs {
+		if i > 0 {
+			childrenStr += ","
+		}
+		childrenStr += id
+	}
+	params.Set("children", childrenStr)
+
+	resp, err := s.httpClient.PostForm(apiURL, params)
+	if err != nil {
+		return "", fmt.Errorf("failed to create carousel container: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("create carousel container failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var containerResp CreateMediaContainerResponse
+	if err := json.Unmarshal(body, &containerResp); err != nil {
+		return "", fmt.Errorf("failed to parse container response: %w", err)
+	}
+
+	return containerResp.ID, nil
+}
+
+// MediaItem represents a single media item in a carousel
+type MediaItem struct {
+	URL     string
+	IsVideo bool
+}
+
+// UploadAndPublishCarousel is a complete flow for uploading and publishing a carousel
+func (s *InstagramMediaService) UploadAndPublishCarousel(
+	accessToken string,
+	igUserID string,
+	mediaItems []MediaItem,
+	caption string,
+) (string, string, error) {
+	if len(mediaItems) < 2 {
+		return "", "", fmt.Errorf("carousel requires at least 2 items")
+	}
+	if len(mediaItems) > 10 {
+		return "", "", fmt.Errorf("carousel supports maximum 10 items")
+	}
+
+	// Step 1: Create individual containers for each media item
+	var childrenIDs []string
+	for i, item := range mediaItems {
+		containerID, err := s.CreateCarouselItemContainer(accessToken, igUserID, item.URL, item.IsVideo)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create container for item %d: %w", i, err)
+		}
+		childrenIDs = append(childrenIDs, containerID)
+
+		// Wait for each video item to process before creating carousel container
+		if item.IsVideo {
+			success, err := s.WaitForMediaProcessing(accessToken, containerID, 300)
+			if err != nil {
+				return "", "", fmt.Errorf("processing failed for video item %d: %w", i, err)
+			}
+			if !success {
+				return "", "", fmt.Errorf("video item %d processing did not complete", i)
+			}
+		}
+	}
+
+	// Step 2: Create the carousel container with all children
+	carouselID, err := s.CreateCarouselContainer(accessToken, igUserID, childrenIDs, caption)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create carousel container: %w", err)
+	}
+
+	// Step 3: Wait for carousel to be ready
+	success, err := s.WaitForMediaProcessing(accessToken, carouselID, 300)
+	if err != nil {
+		return "", "", fmt.Errorf("carousel processing failed: %w", err)
+	}
+	if !success {
+		return "", "", fmt.Errorf("carousel processing did not complete successfully")
+	}
+
+	// Step 4: Publish
+	mediaID, err := s.PublishMedia(accessToken, igUserID, carouselID)
+	if err != nil {
+		return "", "", fmt.Errorf("publish failed: %w", err)
+	}
+
+	// Step 5: Get permalink
+	permalink, err := s.GetPermalink(accessToken, mediaID)
+	if err != nil {
+		// Don't fail if we can't get permalink, just return empty string
+		permalink = ""
+	}
+
+	return mediaID, permalink, nil
+}

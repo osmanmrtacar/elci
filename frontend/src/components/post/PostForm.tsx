@@ -48,7 +48,7 @@ const PRIVACY_OPTIONS: { value: TikTokPrivacyLevel; label: string; description: 
 
 const PostForm = ({ onPostCreated }: PostFormProps) => {
   const { connectedPlatforms } = useAuth()
-  const [mediaUrl, setMediaUrl] = useState('')
+  const [mediaUrls, setMediaUrls] = useState<string[]>([''])
   const [caption, setCaption] = useState('')
   const [title, setTitle] = useState('')
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([])
@@ -63,8 +63,13 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [isBrandContent, setIsBrandContent] = useState(false)
   const [isBrandOrganic, setIsBrandOrganic] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [autoAddMusic, setAutoAddMusic] = useState(false)
 
-  const detectedMediaType = useMemo(() => detectMediaType(mediaUrl), [mediaUrl])
+  // Detect media type from first URL
+  const detectedMediaType = useMemo(() => detectMediaType(mediaUrls[0] || ''), [mediaUrls])
+
+  // Check if this is a carousel (multiple images)
+  const isCarousel = mediaUrls.filter(url => url.trim()).length >= 2
 
   // Get TikTok connection info to display user's nickname
   const tiktokConnection = connectedPlatforms.find(c => c.platform === 'tiktok' && c.is_active)
@@ -78,18 +83,62 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
     )
   }
 
+  // Handle adding a new media URL input
+  const handleAddMediaUrl = () => {
+    if (mediaUrls.length < 10) { // Instagram carousel max is 10
+      setMediaUrls([...mediaUrls, ''])
+    }
+  }
+
+  // Handle removing a media URL input
+  const handleRemoveMediaUrl = (index: number) => {
+    if (mediaUrls.length > 1) {
+      setMediaUrls(mediaUrls.filter((_, i) => i !== index))
+    }
+  }
+
+  // Handle updating a media URL
+  const handleMediaUrlChange = (index: number, value: string) => {
+    const newUrls = [...mediaUrls]
+    newUrls[index] = value
+    setMediaUrls(newUrls)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    if (!mediaUrl.trim()) {
-      setError('Please enter a media URL')
+    // Filter out empty URLs
+    const validUrls = mediaUrls.filter(url => url.trim())
+
+    if (validUrls.length === 0) {
+      setError('Please enter at least one media URL')
       return
     }
 
     if (selectedPlatforms.length === 0) {
       setError('Please select at least one platform')
       return
+    }
+
+    // Platform-specific validation for multiple media
+    if (validUrls.length > 1) {
+      if (selectedPlatforms.includes('x') && validUrls.length > 4) {
+        setError('X (Twitter) only supports up to 4 images per post')
+        return
+      }
+      if (selectedPlatforms.includes('instagram') && validUrls.length > 10) {
+        setError('Instagram only supports up to 10 items per carousel')
+        return
+      }
+      if (selectedPlatforms.includes('instagram') && validUrls.length < 2) {
+        setError('Instagram carousel requires at least 2 items')
+        return
+      }
+      if (selectedPlatforms.includes('tiktok') && validUrls.length > 35) {
+        setError('TikTok only supports up to 35 photos per post')
+        return
+      }
     }
 
     // TikTok-specific validation
@@ -122,18 +171,20 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
             allow_stitch: allowStitch,
             is_brand_content: isBrandContent,
             is_brand_organic: isBrandOrganic,
+            auto_add_music: autoAddMusic,
           }
         : undefined
 
       await postService.createPost({
         platforms: selectedPlatforms,
-        media_url: mediaUrl,
+        media_url: validUrls[0], // Primary URL for backwards compatibility
+        media_urls: validUrls,   // All URLs for carousel/multi-image
         caption: caption,
         tiktok_settings: tiktokSettings,
       })
 
       // Reset form
-      setMediaUrl('')
+      setMediaUrls([''])
       setCaption('')
       setTitle('')
       setSelectedPlatforms([])
@@ -144,6 +195,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       setIsBrandContent(false)
       setIsBrandOrganic(false)
       setAgreedToTerms(false)
+      setAutoAddMusic(false)
 
       onPostCreated()
     } catch (err: any) {
@@ -165,33 +217,72 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        {/* Media URL */}
-        <div className="space-y-2">
-          <label htmlFor="mediaUrl" className="block text-sm font-medium text-gray-700">
-            Media URL <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="url"
-            id="mediaUrl"
-            value={mediaUrl}
-            onChange={(e) => setMediaUrl(e.target.value)}
-            placeholder="https://example.com/video.mp4"
-            disabled={isSubmitting}
-            required
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors"
-          />
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span>Supported: MP4, MOV, WEBM (videos) | JPG, PNG, GIF (images)</span>
-            {detectedMediaType === 'video' && (
-              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                Video detected
-              </span>
-            )}
-            {detectedMediaType === 'image' && (
-              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                Image detected
-              </span>
-            )}
+        {/* Media URLs */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Media URLs <span className="text-red-500">*</span>
+            </label>
+            <div className="flex items-center gap-2">
+              {isCarousel && (
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  Carousel ({mediaUrls.filter(u => u.trim()).length} items)
+                </span>
+              )}
+              {detectedMediaType === 'video' && (
+                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  Video
+                </span>
+              )}
+              {detectedMediaType === 'image' && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  Image
+                </span>
+              )}
+            </div>
+          </div>
+
+          {mediaUrls.map((url, index) => (
+            <div key={index} className="flex gap-2">
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => handleMediaUrlChange(index, e.target.value)}
+                placeholder={`https://example.com/${index === 0 ? 'video.mp4' : `image${index + 1}.jpg`}`}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors"
+              />
+              {mediaUrls.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveMediaUrl(index)}
+                  disabled={isSubmitting}
+                  className="px-3 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                  title="Remove"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={handleAddMediaUrl}
+              disabled={isSubmitting || mediaUrls.length >= 10}
+              className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 disabled:text-gray-400"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add another media
+            </button>
+            <span className="text-xs text-gray-400">
+              {mediaUrls.length}/10 • Supports: MP4, MOV, JPG, PNG, GIF
+            </span>
           </div>
         </div>
 
@@ -383,6 +474,25 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                 </p>
               )}
             </div>
+
+            {/* Auto-Add Music (for photo posts) */}
+            {detectedMediaType === 'image' && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">Music Settings</label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoAddMusic}
+                    onChange={(e) => setAutoAddMusic(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <span className="text-sm text-gray-700 font-medium">Auto-Add Music</span>
+                    <p className="text-xs text-gray-500">TikTok will automatically add trending music to your photo post</p>
+                  </div>
+                </label>
+              </div>
+            )}
 
             {/* Consent Statement */}
             <div className="pt-3 border-t border-gray-200">

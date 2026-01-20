@@ -15,6 +15,7 @@ func (db *DB) RunMigrations() error {
 		createPostsTable,
 		createPlatformConnectionsTable,
 		createOAuthSessionsTable,
+		createPostMediaItemsTable,
 		createIndexes,
 	}
 
@@ -89,6 +90,21 @@ CREATE INDEX IF NOT EXISTS idx_platform_connections_user ON platform_connections
 CREATE INDEX IF NOT EXISTS idx_platform_connections_platform ON platform_connections(platform);
 CREATE INDEX IF NOT EXISTS idx_oauth_sessions_state ON oauth_sessions(state);
 CREATE INDEX IF NOT EXISTS idx_oauth_sessions_expires ON oauth_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_post_media_items_post ON post_media_items(post_id);
+`
+
+// Create post_media_items table for multiple media per post (carousel support)
+const createPostMediaItemsTable = `
+CREATE TABLE IF NOT EXISTS post_media_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    media_url TEXT NOT NULL,
+    media_type TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    platform_media_id TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+);
 `
 
 // Create platform_connections table for tracking connected platforms per user

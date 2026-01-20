@@ -205,6 +205,7 @@ type TikTokPostSettings struct {
 	AllowStitch    bool   // Allow stitch
 	IsBrandContent bool   // Promoting own brand
 	IsBrandOrganic bool   // Paid partnership (branded content)
+	AutoAddMusic   bool   // Auto-add trending music to photo posts (only for photos)
 }
 
 // PublishVideoRequest represents the request to publish a video
@@ -399,6 +400,9 @@ func (s *TikTokService) PublishPhotoFromURL(accessToken string, imageURLs []stri
 			postInfo["brand_content_toggle"] = true
 			postInfo["brand_organic_toggle"] = settings.IsBrandOrganic
 		}
+
+		// Auto-add music for photo posts (TikTok auto-selects trending music)
+		postInfo["auto_add_music"] = settings.AutoAddMusic
 	}
 
 	requestBody := map[string]interface{}{

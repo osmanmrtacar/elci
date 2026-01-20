@@ -60,12 +60,14 @@ type TikTokSettings struct {
 	AllowStitch    bool   // Allow stitch (default: false per UX guidelines)
 	IsBrandContent bool   // Promoting own brand
 	IsBrandOrganic bool   // Paid partnership (branded content)
+	AutoAddMusic   bool   // Auto-add trending music to photo posts (only for photos)
 }
 
 // PostContent represents the content to be posted
 type PostContent struct {
 	Text           string          // Post text/caption
-	MediaURL       string          // URL of media to download and upload
+	MediaURL       string          // Primary URL of media to download and upload
+	MediaURLs      []string        // Multiple media URLs (for carousel/multi-image)
 	MediaIDs       []string        // Pre-uploaded media IDs (for platforms like X)
 	TikTokSettings *TikTokSettings // TikTok-specific settings (optional)
 }

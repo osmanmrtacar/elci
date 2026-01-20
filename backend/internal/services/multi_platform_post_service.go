@@ -113,6 +113,16 @@ func (a *platformServiceAdapter) CreatePost(accessToken string, content PostCont
 	contentValue.FieldByName("Text").SetString(content.Text)
 	contentValue.FieldByName("MediaURL").SetString(content.MediaURL)
 
+	// Set MediaURLs slice (for carousel/multi-image)
+	mediaURLsField := contentValue.FieldByName("MediaURLs")
+	if mediaURLsField.IsValid() && mediaURLsField.CanSet() {
+		mediaURLsSlice := reflect.MakeSlice(reflect.TypeOf([]string{}), len(content.MediaURLs), len(content.MediaURLs))
+		for i, url := range content.MediaURLs {
+			mediaURLsSlice.Index(i).SetString(url)
+		}
+		mediaURLsField.Set(mediaURLsSlice)
+	}
+
 	// Set MediaIDs slice
 	mediaIDsField := contentValue.FieldByName("MediaIDs")
 	mediaIDsSlice := reflect.MakeSlice(reflect.TypeOf([]string{}), len(content.MediaIDs), len(content.MediaIDs))
@@ -284,12 +294,14 @@ type TikTokSettings struct {
 	AllowStitch    bool   // Allow stitch (default: false per UX guidelines)
 	IsBrandContent bool   // Promoting own brand
 	IsBrandOrganic bool   // Paid partnership (branded content)
+	AutoAddMusic   bool   // Auto-add trending music to photo posts (only for photos)
 }
 
 // PostContent represents the content to be posted
 type PostContent struct {
 	Text           string
-	MediaURL       string
+	MediaURL       string   // Primary media URL (for single media posts)
+	MediaURLs      []string // Multiple media URLs (for carousel/multi-image posts)
 	MediaIDs       []string
 	TikTokSettings *TikTokSettings // TikTok-specific settings
 }
@@ -344,7 +356,8 @@ func NewMultiPlatformPostService(
 // CreateMultiPlatformPostRequest represents a request to create a post on multiple platforms
 type CreateMultiPlatformPostRequest struct {
 	Platforms      []models.Platform `json:"platforms"`                 // ["tiktok", "x"]
-	MediaURL       string            `json:"media_url"`                 // Video/image URL
+	MediaURL       string            `json:"media_url"`                 // Primary video/image URL (for single media)
+	MediaURLs      []string          `json:"media_urls"`                // Multiple media URLs (for carousel/multi-image)
 	Caption        string            `json:"caption"`                   // Post text/caption
 	TikTokSettings *TikTokSettings   `json:"tiktok_settings,omitempty"` // TikTok-specific settings
 }
@@ -361,8 +374,15 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 		return nil, fmt.Errorf("at least one platform must be specified")
 	}
 
-	if req.MediaURL == "" {
+	// Ensure we have at least one media URL
+	if req.MediaURL == "" && len(req.MediaURLs) == 0 {
 		return nil, fmt.Errorf("media URL is required")
+	}
+
+	// Use MediaURLs if provided, otherwise fall back to MediaURL
+	mediaURLs := req.MediaURLs
+	if len(mediaURLs) == 0 && req.MediaURL != "" {
+		mediaURLs = []string{req.MediaURL}
 	}
 
 	// Validate that user has connected all requested platforms
@@ -396,17 +416,22 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 	errors := make(map[string]string)
 	var mu sync.Mutex
 
-	// Detect media type from URL
+	// Detect media type from primary URL
+	primaryMediaURL := mediaURLs[0]
 	mediaType := "video"
-	if IsImageURL(req.MediaURL) {
+	if IsImageURL(primaryMediaURL) {
 		mediaType = "image"
+	}
+	// If multiple images, it's a carousel
+	if len(mediaURLs) > 1 && mediaType == "image" {
+		mediaType = "carousel"
 	}
 
 	for _, plt := range req.Platforms {
 		post := &models.Post{
 			UserID:    userID,
 			Platform:  plt,
-			VideoURL:  req.MediaURL,
+			VideoURL:  primaryMediaURL, // Store primary URL in existing field
 			Caption:   req.Caption,
 			Status:    models.PostStatusPending,
 			MediaType: mediaType,
@@ -426,7 +451,7 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 		if plt == models.PlatformTikTok && req.TikTokSettings != nil {
 			tiktokSettings = req.TikTokSettings
 		}
-		go s.processPlatformPost(post.ID, userID, plt, tiktokSettings, &mu, errors)
+		go s.processPlatformPost(post.ID, userID, plt, tiktokSettings, mediaURLs, &mu, errors)
 	}
 
 	response := &CreateMultiPlatformPostResponse{
@@ -441,7 +466,7 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 }
 
 // processPlatformPost handles posting to a specific platform asynchronously
-func (s *MultiPlatformPostService) processPlatformPost(postID int64, userID int64, plt models.Platform, tiktokSettings *TikTokSettings, mu *sync.Mutex, errors map[string]string) {
+func (s *MultiPlatformPostService) processPlatformPost(postID int64, userID int64, plt models.Platform, tiktokSettings *TikTokSettings, mediaURLs []string, mu *sync.Mutex, errors map[string]string) {
 	// Update status to processing
 	if err := s.postRepo.UpdateStatus(postID, models.PostStatusProcessing, ""); err != nil {
 		log.Printf("Failed to update post %d status to processing: %v", postID, err)
@@ -534,31 +559,31 @@ func (s *MultiPlatformPostService) processPlatformPost(postID int64, userID int6
 	}
 
 	// Upload media if needed (for platforms like X that require upload before posting)
-	var mediaID string
+	var mediaIDs []string
 	if plt == models.PlatformX {
-		log.Printf("Uploading media to %s for post %d", plt, postID)
-		mediaID, err = platformService.UploadMedia(token.AccessToken, post.VideoURL)
-		if err != nil {
-			log.Printf("Failed to upload media to %s: %v", plt, err)
-			s.postRepo.UpdateStatus(postID, models.PostStatusFailed, fmt.Sprintf("Media upload failed: %v", err))
-			mu.Lock()
-			errors[string(plt)] = fmt.Sprintf("Media upload failed: %v", err)
-			mu.Unlock()
-			return
+		log.Printf("Uploading %d media file(s) to %s for post %d", len(mediaURLs), plt, postID)
+		for i, mediaURL := range mediaURLs {
+			mediaID, err := platformService.UploadMedia(token.AccessToken, mediaURL)
+			if err != nil {
+				log.Printf("Failed to upload media %d to %s: %v", i+1, plt, err)
+				s.postRepo.UpdateStatus(postID, models.PostStatusFailed, fmt.Sprintf("Media upload failed: %v", err))
+				mu.Lock()
+				errors[string(plt)] = fmt.Sprintf("Media upload failed: %v", err)
+				mu.Unlock()
+				return
+			}
+			mediaIDs = append(mediaIDs, mediaID)
+			log.Printf("Media %d uploaded to %s: %s", i+1, plt, mediaID)
 		}
-		log.Printf("Media uploaded to %s: %s", plt, mediaID)
 	}
 
 	// Create post on platform
 	postContent := PostContent{
 		Text:           post.Caption,
-		MediaURL:       post.VideoURL,
-		MediaIDs:       []string{},
+		MediaURL:       mediaURLs[0], // Primary URL
+		MediaURLs:      mediaURLs,    // All URLs for carousel/multi-image
+		MediaIDs:       mediaIDs,
 		TikTokSettings: tiktokSettings,
-	}
-
-	if mediaID != "" {
-		postContent.MediaIDs = []string{mediaID}
 	}
 
 	postResp, err := platformService.CreatePost(token.AccessToken, postContent)

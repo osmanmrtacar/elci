@@ -117,19 +117,33 @@ func (s *XPlatformService) UploadMedia(accessToken, mediaURL string) (string, er
 }
 
 // CreatePost creates a tweet with optional media
+// Supports up to 4 images OR 1 video per tweet
 func (s *XPlatformService) CreatePost(accessToken string, content PostContent) (*PostResponse, error) {
 	var mediaIDs []string
 
-	// If media URL provided, upload it first
-	if content.MediaURL != "" {
+	// Use pre-uploaded media IDs if provided
+	if len(content.MediaIDs) > 0 {
+		mediaIDs = content.MediaIDs
+	} else if len(content.MediaURLs) > 0 {
+		// Upload multiple media files
+		for i, mediaURL := range content.MediaURLs {
+			// X limits: max 4 images or 1 video
+			if i >= 4 {
+				break
+			}
+			mediaID, err := s.UploadMedia(accessToken, mediaURL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to upload media %d: %w", i+1, err)
+			}
+			mediaIDs = append(mediaIDs, mediaID)
+		}
+	} else if content.MediaURL != "" {
+		// Single media URL - upload it
 		mediaID, err := s.UploadMedia(accessToken, content.MediaURL)
 		if err != nil {
 			return nil, err
 		}
 		mediaIDs = []string{mediaID}
-	} else if len(content.MediaIDs) > 0 {
-		// Use pre-uploaded media IDs
-		mediaIDs = content.MediaIDs
 	}
 
 	// Create tweet
