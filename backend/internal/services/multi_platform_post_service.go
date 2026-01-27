@@ -634,8 +634,15 @@ func (s *MultiPlatformPostService) processPlatformPost(postID int64, userID int6
 	log.Printf("Post created on %s with ID: %s (status: %s)", plt, postResp.PostID, postResp.Status)
 
 	// Handle platform-specific processing
-	if plt == models.PlatformTikTok {
-		// TikTok requires polling for status
+	if plt == models.PlatformTikTok && postResp.Status == "published" {
+		// Inbox mode: already delivered, mark as published immediately
+		if err := s.postRepo.MarkPublishedWithPlatform(postID, postResp.PostID); err != nil {
+			log.Printf("Failed to mark post %d as published: %v", postID, err)
+		} else {
+			log.Printf("Post %d sent to TikTok inbox successfully", postID)
+		}
+	} else if plt == models.PlatformTikTok {
+		// Direct Post: TikTok requires polling for status
 		s.pollTikTokStatus(postID, userID, postResp.PostID, token.AccessToken, platformService)
 	} else if plt == models.PlatformX {
 		// X posts are published immediately

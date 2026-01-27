@@ -188,9 +188,15 @@ func (s *TikTokPlatformService) CreatePost(accessToken string, content PostConte
 		return nil, fmt.Errorf("failed to create post: %w", err)
 	}
 
+	// Inbox posts are done once TikTok accepts them; Direct Post needs polling
+	status := "processing"
+	if content.TikTokSettings != nil && !content.TikTokSettings.DirectPost {
+		status = "published"
+	}
+
 	return &PostResponse{
 		PostID: resp.Data.PublishID,
-		Status: "processing", // TikTok posts are processed asynchronously
+		Status: status,
 	}, nil
 }
 
