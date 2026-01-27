@@ -163,6 +163,7 @@ func (s *TikTokPlatformService) CreatePost(accessToken string, content PostConte
 			IsBrandContent: content.TikTokSettings.IsBrandContent,
 			IsBrandOrganic: content.TikTokSettings.IsBrandOrganic,
 			AutoAddMusic:   content.TikTokSettings.AutoAddMusic,
+			DirectPost:     content.TikTokSettings.DirectPost,
 		}
 	}
 
@@ -211,9 +212,11 @@ func (s *TikTokPlatformService) GetPostStatus(accessToken, postID string) (*Post
 		if resp.Data.ShareID != "" {
 			shareURL = fmt.Sprintf("https://www.tiktok.com/@user/video/%s", resp.Data.ShareID)
 		}
+	case "SEND_TO_USER_INBOX":
+		status = "published"
 	case "FAILED":
 		status = "failed"
-	case "PROCESSING_UPLOAD", "PROCESSING_DOWNLOAD", "SEND_TO_USER_INBOX":
+	case "PROCESSING_UPLOAD", "PROCESSING_DOWNLOAD":
 		status = "processing"
 	default:
 		status = "processing"

@@ -164,6 +164,9 @@ func (a *platformServiceAdapter) CreatePost(accessToken string, content PostCont
 			if f := tiktokSettingsValue.FieldByName("AutoAddMusic"); f.IsValid() {
 				f.SetBool(content.TikTokSettings.AutoAddMusic)
 			}
+			if f := tiktokSettingsValue.FieldByName("DirectPost"); f.IsValid() {
+				f.SetBool(content.TikTokSettings.DirectPost)
+			}
 
 			tiktokSettingsField.Set(tiktokSettingsValue.Addr())
 		}
@@ -298,6 +301,7 @@ type TikTokSettings struct {
 	IsBrandContent bool   // Promoting own brand
 	IsBrandOrganic bool   // Paid partnership (branded content)
 	AutoAddMusic   bool   // Auto-add trending music to photo posts (only for photos)
+	DirectPost     bool   // Direct Post (true) vs Send to Inbox (false)
 }
 
 // PostContent represents the content to be posted

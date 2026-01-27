@@ -32,6 +32,7 @@ type TikTokSettings struct {
 	IsBrandContent bool   `json:"is_brand_content"`          // Promoting own brand
 	IsBrandOrganic bool   `json:"is_brand_organic"`          // Paid partnership
 	AutoAddMusic   bool   `json:"auto_add_music"`            // Auto-add music (for TikTok photo posts)
+	DirectPost     bool   `json:"direct_post"`               // Direct Post (true) vs Send to Inbox (false)
 }
 
 // CreatePostRequest represents the request to create a post on multiple platforms
@@ -101,6 +102,7 @@ func (h *MultiPlatformPostHandler) CreatePost(c *gin.Context) {
 			IsBrandContent: req.TikTokSettings.IsBrandContent,
 			IsBrandOrganic: req.TikTokSettings.IsBrandOrganic,
 			AutoAddMusic:   req.TikTokSettings.AutoAddMusic,
+			DirectPost:     req.TikTokSettings.DirectPost,
 		}
 	}
 

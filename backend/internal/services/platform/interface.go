@@ -61,6 +61,7 @@ type TikTokSettings struct {
 	IsBrandContent bool   // Promoting own brand
 	IsBrandOrganic bool   // Paid partnership (branded content)
 	AutoAddMusic   bool   // Auto-add trending music to photo posts (only for photos)
+	DirectPost     bool   // Direct Post (true) vs Send to Inbox (false)
 }
 
 // PostContent represents the content to be posted

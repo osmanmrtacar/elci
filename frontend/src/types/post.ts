@@ -17,6 +17,7 @@ export interface TikTokSettings {
   is_brand_content?: boolean        // "Your Brand" - promoting yourself
   is_brand_organic?: boolean        // "Branded Content" - paid partnership
   auto_add_music?: boolean          // Auto-add music (for TikTok photo posts)
+  direct_post?: boolean             // Direct Post (true) vs Send to Inbox (false)
 }
 
 export interface Post {

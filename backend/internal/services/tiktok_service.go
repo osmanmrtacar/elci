@@ -16,8 +16,8 @@ const (
 	tiktokTokenURL       = "https://open.tiktokapis.com/v2/oauth/token/"
 	tiktokUserInfoURL    = "https://open.tiktokapis.com/v2/user/info/"
 	tiktokPublishURL     = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+	tiktokInboxURL       = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
 	tiktokPublishStatus  = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
-	tiktokUploadURL      = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
 	tiktokContentInitURL = "https://open.tiktokapis.com/v2/post/publish/content/init/"
 )
 
@@ -206,6 +206,7 @@ type TikTokPostSettings struct {
 	IsBrandContent bool   // Promoting own brand
 	IsBrandOrganic bool   // Paid partnership (branded content)
 	AutoAddMusic   bool   // Auto-add trending music to photo posts (only for photos)
+	DirectPost     bool   // Direct Post (true) vs Send to Inbox (false)
 }
 
 // PublishVideoRequest represents the request to publish a video
@@ -242,6 +243,12 @@ type PublishStatusResponse struct {
 
 // PublishVideoFromURL publishes a video to TikTok from a URL
 func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string, caption string, settings *TikTokPostSettings) (*PublishVideoResponse, error) {
+	// Determine whether to use Direct Post or Send to Inbox
+	useDirectPost := true
+	if settings != nil {
+		useDirectPost = settings.DirectPost
+	}
+
 	// Build post_info with settings
 	postInfo := map[string]interface{}{
 		"title": caption, // Use caption as default title
@@ -265,11 +272,16 @@ func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string,
 		postInfo["disable_duet"] = !settings.AllowDuet
 		postInfo["disable_stitch"] = !settings.AllowStitch
 
-		// Commercial content disclosure
-		if settings.IsBrandContent || settings.IsBrandOrganic {
-			postInfo["brand_content_toggle"] = true
-			postInfo["brand_organic_toggle"] = settings.IsBrandOrganic
+		// Commercial content disclosure (brand_content_toggle is required by Direct Post API only)
+		if useDirectPost {
+			postInfo["brand_content_toggle"] = settings.IsBrandContent || settings.IsBrandOrganic
+			if settings.IsBrandOrganic {
+				postInfo["brand_organic_toggle"] = true
+			}
 		}
+	} else if useDirectPost {
+		// brand_content_toggle is required by the Direct Post API, default to false
+		postInfo["brand_content_toggle"] = false
 	}
 
 	requestBody := map[string]interface{}{
@@ -280,12 +292,18 @@ func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string,
 		},
 	}
 
+	// Choose endpoint based on publish mode
+	publishURL := tiktokPublishURL
+	if !useDirectPost {
+		publishURL = tiktokInboxURL
+	}
+
 	body, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", tiktokUploadURL, bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", publishURL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

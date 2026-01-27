@@ -64,6 +64,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [isBrandOrganic, setIsBrandOrganic] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [autoAddMusic, setAutoAddMusic] = useState(false)
+  const [directPost, setDirectPost] = useState(true)
 
   // Detect media type from first URL
   const detectedMediaType = useMemo(() => detectMediaType(mediaUrls[0] || ''), [mediaUrls])
@@ -172,6 +173,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
             is_brand_content: isBrandContent,
             is_brand_organic: isBrandOrganic,
             auto_add_music: autoAddMusic,
+            direct_post: directPost,
           }
         : undefined
 
@@ -196,6 +198,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       setIsBrandOrganic(false)
       setAgreedToTerms(false)
       setAutoAddMusic(false)
+      setDirectPost(true)
 
       onPostCreated()
     } catch (err: any) {
@@ -384,6 +387,42 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                 </p>
               </div>
             </div>
+
+            {/* Direct Post vs Send to Inbox (only for video posts) */}
+            {detectedMediaType !== 'image' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Publish Mode</label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDirectPost(true)}
+                    className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      directPost
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    Direct Post
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirectPost(false)}
+                    className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      !directPost
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    Send to Inbox
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {directPost
+                    ? 'Video will be published automatically to your TikTok account.'
+                    : 'Video will be sent to your TikTok inbox for manual review before publishing.'}
+                </p>
+              </div>
+            )}
 
             {/* Privacy Level (Required - no default) */}
             <div className="space-y-2">
