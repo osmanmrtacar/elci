@@ -161,6 +161,9 @@ func (a *platformServiceAdapter) CreatePost(accessToken string, content PostCont
 			if f := tiktokSettingsValue.FieldByName("IsBrandOrganic"); f.IsValid() {
 				f.SetBool(content.TikTokSettings.IsBrandOrganic)
 			}
+			if f := tiktokSettingsValue.FieldByName("AutoAddMusic"); f.IsValid() {
+				f.SetBool(content.TikTokSettings.AutoAddMusic)
+			}
 
 			tiktokSettingsField.Set(tiktokSettingsValue.Addr())
 		}
