@@ -257,13 +257,41 @@ func (a *platformServiceAdapter) GetUserInfo(accessToken string) (*UserInfo, err
 }
 
 func (a *platformServiceAdapter) GetPostStatus(accessToken string, postID string) (*PostStatusResponse, error) {
-	type statusGetter interface {
-		GetPostStatus(string, string) (*PostStatusResponse, error)
+	svcValue := reflect.ValueOf(a.service)
+	method := svcValue.MethodByName("GetPostStatus")
+
+	if !method.IsValid() {
+		return nil, fmt.Errorf("service does not implement GetPostStatus")
 	}
-	if svc, ok := a.service.(statusGetter); ok {
-		return svc.GetPostStatus(accessToken, postID)
+
+	results := method.Call([]reflect.Value{
+		reflect.ValueOf(accessToken),
+		reflect.ValueOf(postID),
+	})
+
+	if len(results) != 2 {
+		return nil, fmt.Errorf("GetPostStatus method has wrong number of return values")
 	}
-	return nil, fmt.Errorf("service does not implement GetPostStatus")
+
+	if !results[1].IsNil() {
+		err := results[1].Interface().(error)
+		return nil, err
+	}
+
+	respValue := results[0]
+	if respValue.IsNil() {
+		return nil, nil
+	}
+
+	// Extract fields using reflection to handle cross-package type conversion
+	respElem := respValue.Elem()
+	return &PostStatusResponse{
+		Status:          respElem.FieldByName("Status").String(),
+		PostID:          respElem.FieldByName("PostID").String(),
+		ShareURL:        respElem.FieldByName("ShareURL").String(),
+		FailReason:      respElem.FieldByName("FailReason").String(),
+		ProgressPercent: int(respElem.FieldByName("ProgressPercent").Int()),
+	}, nil
 }
 
 // AuthURLResponse contains the OAuth authorization URL and associated data
