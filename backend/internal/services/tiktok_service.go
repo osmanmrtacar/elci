@@ -303,6 +303,8 @@ func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string,
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
+	fmt.Printf("DEBUG PublishVideo: POST %s body=%s\n", publishURL, string(body))
+
 	req, err := http.NewRequest("POST", publishURL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -321,6 +323,8 @@ func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string,
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
+
+	fmt.Printf("DEBUG PublishVideo: status=%d response=%s\n", resp.StatusCode, string(responseBody))
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("TikTok API error: %s - %s", resp.Status, string(responseBody))
@@ -350,6 +354,8 @@ func (s *TikTokService) GetPublishStatus(accessToken string, publishID string) (
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
+	fmt.Printf("DEBUG GetPublishStatus: POST %s publish_id=%s\n", tiktokPublishStatus, publishID)
+
 	req, err := http.NewRequest("POST", tiktokPublishStatus, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -368,6 +374,8 @@ func (s *TikTokService) GetPublishStatus(accessToken string, publishID string) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
+
+	fmt.Printf("DEBUG GetPublishStatus: status=%d response=%s\n", resp.StatusCode, string(responseBody))
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("TikTok API error: %s - %s", resp.Status, string(responseBody))
