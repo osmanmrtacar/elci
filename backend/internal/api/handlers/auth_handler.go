@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -151,44 +150,3 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	})
 }
 
-// GetDevToken generates a JWT token for a user (development only)
-func (h *AuthHandler) GetDevToken(c *gin.Context) {
-	userIDStr := c.Param("user_id")
-
-	var userID int64
-	if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid user ID",
-		})
-		return
-	}
-
-	// Get user from database
-	user, err := h.userRepo.GetByID(userID)
-	if err != nil {
-		log.Printf("Failed to get user %d: %v", userID, err)
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "User not found",
-		})
-		return
-	}
-
-	// Generate JWT token
-	jwtToken, err := h.authService.CreateJWTSession(user)
-	if err != nil {
-		log.Printf("Failed to create JWT for user %d: %v", userID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create token",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"token": jwtToken,
-		"user": gin.H{
-			"id":           user.ID,
-			"username":     user.Username,
-			"display_name": user.DisplayName,
-		},
-	})
-}

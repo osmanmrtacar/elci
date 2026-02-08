@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -75,6 +76,14 @@ func (h *MultiPlatformPostHandler) CreatePost(c *gin.Context) {
 	// If media_url is provided but media_urls is empty, use media_url as the single item
 	if len(req.MediaURLs) == 0 && req.MediaURL != "" {
 		req.MediaURLs = []string{req.MediaURL}
+	}
+
+	// Validate all media URLs to prevent SSRF
+	for i, mediaURL := range req.MediaURLs {
+		if err := services.ValidateMediaURL(mediaURL); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid media_url at index %d: %s", i, err.Error())})
+			return
+		}
 	}
 
 	// Convert platform strings to Platform type

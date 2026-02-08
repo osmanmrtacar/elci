@@ -20,11 +20,11 @@ func SetupRouter(cfg *config.Config, db *database.DB) *gin.Engine {
 
 	router := gin.Default()
 
-	// Trust all proxies (removes warning, assumes Cloudflare strips malicious headers)
-	// This is safe when using Cloudflare proxy as it sanitizes X-Forwarded-For
-	router.SetTrustedProxies([]string{"0.0.0.0/0", "::/0"})
+	// Trust no proxies - safest option behind Cloudflare which handles forwarded headers
+	router.SetTrustedProxies(nil)
 
-	// Apply CORS middleware
+	// Apply security headers and CORS middleware
+	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.CORS(cfg.CORS.AllowedOrigins))
 
 	// Health check endpoint (no auth required)
@@ -48,9 +48,6 @@ func SetupRouter(cfg *config.Config, db *database.DB) *gin.Engine {
 
 	// Initialize TikTok platform services
 	tiktokService := services.NewTikTokService(cfg)
-	tokenService := services.NewTokenService(cfg, tokenRepo)
-	tokenService.SetTikTokService(tiktokService)
-	authService := services.NewAuthService(cfg, tokenService, tiktokService, userRepo)
 
 	// Register TikTok platform
 	tiktokPlatform := platform.NewTikTokPlatformService(cfg, tiktokService)
@@ -87,7 +84,6 @@ func SetupRouter(cfg *config.Config, db *database.DB) *gin.Engine {
 	)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(authService, userRepo)
 	multiPlatformAuthHandler := handlers.NewMultiPlatformAuthHandler(
 		cfg,
 		platformRegistry,
@@ -113,11 +109,6 @@ func SetupRouter(cfg *config.Config, db *database.DB) *gin.Engine {
 			auth.GET("/instagram/login", multiPlatformAuthHandler.InstagramLogin)
 			auth.GET("/instagram/callback", multiPlatformAuthHandler.InstagramCallback)
 			auth.POST("/logout", multiPlatformAuthHandler.Logout)
-
-			// Development only: Get JWT token for testing
-			if cfg.Server.Environment == "development" {
-				auth.GET("/dev/token/:user_id", authHandler.GetDevToken)
-			}
 		}
 
 		// Protected routes (require auth)
