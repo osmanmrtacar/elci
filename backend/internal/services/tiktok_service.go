@@ -18,7 +18,8 @@ const (
 	tiktokPublishURL     = "https://open.tiktokapis.com/v2/post/publish/video/init/"
 	tiktokInboxURL       = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
 	tiktokPublishStatus  = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
-	tiktokContentInitURL = "https://open.tiktokapis.com/v2/post/publish/content/init/"
+	tiktokContentInitURL  = "https://open.tiktokapis.com/v2/post/publish/content/init/"
+	tiktokCreatorInfoURL  = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
 )
 
 type TikTokService struct {
@@ -392,6 +393,65 @@ func (s *TikTokService) GetPublishStatus(accessToken string, publishID string) (
 	}
 
 	return &statusResponse, nil
+}
+
+// CreatorInfoResponse represents the creator info from TikTok's Creator Info API
+type CreatorInfoResponse struct {
+	PrivacyLevelOptions     []string `json:"privacy_level_options"`
+	MaxVideoPostDurationSec int      `json:"max_video_post_duration_sec"`
+	StitchDisabled          bool     `json:"stitch_disabled"`
+	CommentDisabled         bool     `json:"comment_disabled"`
+	DuetDisabled            bool     `json:"duet_disabled"`
+}
+
+// GetCreatorInfo fetches creator posting capabilities from TikTok's Creator Info API
+func (s *TikTokService) GetCreatorInfo(accessToken string) (*CreatorInfoResponse, error) {
+	body, err := json.Marshal(map[string]any{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", tiktokCreatorInfoURL, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("TikTok API error: %s - %s", resp.Status, string(responseBody))
+	}
+
+	var raw struct {
+		Data struct {
+			CreatorInfo CreatorInfoResponse `json:"creator_info"`
+		} `json:"data"`
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(responseBody, &raw); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if raw.Error.Code != "" && raw.Error.Code != "ok" {
+		return nil, fmt.Errorf("TikTok API error: %s - %s", raw.Error.Code, raw.Error.Message)
+	}
+
+	return &raw.Data.CreatorInfo, nil
 }
 
 // PublishPhotoFromURL publishes a photo post to TikTok from one or more image URLs

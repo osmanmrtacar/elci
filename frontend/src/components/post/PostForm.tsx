@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { postService } from '../../services/postService'
 import { useAuth } from '../../context/AuthContext'
 import { Platform } from '../../types/user'
-import { TikTokPrivacyLevel, TikTokSettings } from '../../types/post'
+import { TikTokPrivacyLevel, TikTokSettings, TikTokCreatorInfo } from '../../types/post'
 
 interface PostFormProps {
   onPostCreated: () => void
@@ -39,12 +39,12 @@ const detectMediaType = (url: string): MediaType => {
   return 'unknown'
 }
 
-const PRIVACY_OPTIONS: { value: TikTokPrivacyLevel; label: string; description: string }[] = [
-  { value: 'PUBLIC_TO_EVERYONE', label: 'Public', description: 'Anyone can view this video' },
-  { value: 'MUTUAL_FOLLOW_FRIENDS', label: 'Friends', description: 'Only mutual followers can view' },
-  { value: 'FOLLOWER_OF_CREATOR', label: 'Followers', description: 'Only your followers can view' },
-  { value: 'SELF_ONLY', label: 'Only Me', description: 'Only you can view this video' },
-]
+const PRIVACY_LABEL_MAP: Record<string, { label: string; description: string }> = {
+  PUBLIC_TO_EVERYONE: { label: 'Public', description: 'Anyone can view this video' },
+  MUTUAL_FOLLOW_FRIENDS: { label: 'Friends', description: 'Only mutual followers can view' },
+  FOLLOWER_OF_CREATOR: { label: 'Followers', description: 'Only your followers can view' },
+  SELF_ONLY: { label: 'Only Me', description: 'Only you can view this video' },
+}
 
 const PostForm = ({ onPostCreated }: PostFormProps) => {
   const { connectedPlatforms } = useAuth()
@@ -66,6 +66,53 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [autoAddMusic, setAutoAddMusic] = useState(false)
   const [directPost, setDirectPost] = useState(true)
 
+  // TikTok Creator Info state
+  const [creatorInfo, setCreatorInfo] = useState<TikTokCreatorInfo | null>(null)
+  const [creatorInfoLoading, setCreatorInfoLoading] = useState(false)
+  const [creatorInfoError, setCreatorInfoError] = useState<string | null>(null)
+
+  // Media preview error tracking
+  const [previewErrors, setPreviewErrors] = useState<Record<number, boolean>>({})
+
+  const isTikTokSelected = selectedPlatforms.includes('tiktok')
+
+  // Fetch creator info when TikTok is selected
+  const fetchCreatorInfo = useCallback(async () => {
+    setCreatorInfoLoading(true)
+    setCreatorInfoError(null)
+    try {
+      const info = await postService.getTikTokCreatorInfo()
+      setCreatorInfo(info)
+      // Force-disable interactions that are disabled by creator settings
+      if (info.comment_disabled) setAllowComment(false)
+      if (info.duet_disabled) setAllowDuet(false)
+      if (info.stitch_disabled) setAllowStitch(false)
+    } catch {
+      setCreatorInfoError('Failed to load TikTok creator settings')
+    } finally {
+      setCreatorInfoLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isTikTokSelected) {
+      fetchCreatorInfo()
+    } else {
+      setCreatorInfo(null)
+      setCreatorInfoError(null)
+    }
+  }, [isTikTokSelected, fetchCreatorInfo])
+
+  // Build dynamic privacy options from creator info
+  const privacyOptions = useMemo(() => {
+    if (!creatorInfo?.privacy_level_options) return []
+    return creatorInfo.privacy_level_options.map(value => ({
+      value: value as TikTokPrivacyLevel,
+      label: PRIVACY_LABEL_MAP[value]?.label ?? value,
+      description: PRIVACY_LABEL_MAP[value]?.description ?? '',
+    }))
+  }, [creatorInfo])
+
   // Detect media type from first URL
   const detectedMediaType = useMemo(() => detectMediaType(mediaUrls[0] || ''), [mediaUrls])
 
@@ -74,7 +121,6 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
   // Get TikTok connection info to display user's nickname
   const tiktokConnection = connectedPlatforms.find(c => c.platform === 'tiktok' && c.is_active)
-  const isTikTokSelected = selectedPlatforms.includes('tiktok')
 
   const handlePlatformToggle = (platform: Platform) => {
     setSelectedPlatforms(prev =>
@@ -103,6 +149,12 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
     const newUrls = [...mediaUrls]
     newUrls[index] = value
     setMediaUrls(newUrls)
+    // Clear preview error for this URL when it changes
+    setPreviewErrors(prev => {
+      const next = { ...prev }
+      delete next[index]
+      return next
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -199,6 +251,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       setAgreedToTerms(false)
       setAutoAddMusic(false)
       setDirectPost(true)
+      setPreviewErrors({})
 
       onPostCreated()
     } catch (err: any) {
@@ -288,6 +341,49 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
             </span>
           </div>
         </div>
+
+        {/* Media Preview */}
+        {mediaUrls.some(url => url.trim()) && (
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Media Preview</label>
+            <div className={`${isCarousel ? 'grid grid-cols-3 sm:grid-cols-4 gap-2' : ''}`}>
+              {mediaUrls.map((url, index) => {
+                if (!url.trim() || previewErrors[index]) return null
+                const type = detectMediaType(url)
+                if (type === 'video') {
+                  return (
+                    <video
+                      key={index}
+                      src={url}
+                      controls
+                      className="w-full max-h-64 rounded-xl border border-gray-200 object-contain bg-black"
+                      onError={() => setPreviewErrors(prev => ({ ...prev, [index]: true }))}
+                    />
+                  )
+                }
+                return (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`Media ${index + 1}`}
+                    className={`rounded-xl border border-gray-200 object-cover ${isCarousel ? 'w-full h-24' : 'max-h-48'}`}
+                    onError={() => setPreviewErrors(prev => ({ ...prev, [index]: true }))}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Max video duration info from Creator Info API */}
+        {isTikTokSelected && creatorInfo && detectedMediaType === 'video' && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Maximum video duration: {creatorInfo.max_video_post_duration_sec} seconds
+          </div>
+        )}
 
         {/* Title (for TikTok) */}
         <div className="space-y-2">
@@ -424,56 +520,83 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
               </div>
             )}
 
-            {/* Privacy Level (Required - no default) */}
+            {/* Privacy Level (Required - dynamically populated from Creator Info API) */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Privacy Level <span className="text-red-500">*</span>
               </label>
-              <select
-                value={privacyLevel}
-                onChange={(e) => setPrivacyLevel(e.target.value as TikTokPrivacyLevel | '')}
-                required={isTikTokSelected}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors bg-white"
-              >
-                <option value="">-- Select privacy level --</option>
-                {PRIVACY_OPTIONS.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label} - {option.description}
-                  </option>
-                ))}
-              </select>
+              {creatorInfoLoading ? (
+                <div className="flex items-center gap-2 px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-500 text-sm">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Loading privacy options...
+                </div>
+              ) : creatorInfoError ? (
+                <div className="px-4 py-3 border-2 border-red-200 rounded-xl bg-red-50 text-red-600 text-sm">
+                  {creatorInfoError}
+                  <button type="button" onClick={fetchCreatorInfo} className="ml-2 underline">Retry</button>
+                </div>
+              ) : (
+                <select
+                  value={privacyLevel}
+                  onChange={(e) => setPrivacyLevel(e.target.value as TikTokPrivacyLevel | '')}
+                  required={isTikTokSelected}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors bg-white"
+                >
+                  <option value="">-- Select privacy level --</option>
+                  {privacyOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}{option.description ? ` - ${option.description}` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
-            {/* Interaction Settings (all unchecked by default) */}
+            {/* Interaction Settings (disabled states from Creator Info API) */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">Interaction Settings</label>
               <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label className={`flex items-center gap-3 ${creatorInfo?.comment_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input
                     type="checkbox"
                     checked={allowComment}
                     onChange={(e) => setAllowComment(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    disabled={creatorInfo?.comment_disabled}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                   />
-                  <span className="text-sm text-gray-700">Allow Comments</span>
+                  <span className="text-sm text-gray-700">
+                    Allow Comments
+                    {creatorInfo?.comment_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
+                  </span>
                 </label>
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label className={`flex items-center gap-3 ${creatorInfo?.duet_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input
                     type="checkbox"
                     checked={allowDuet}
                     onChange={(e) => setAllowDuet(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    disabled={creatorInfo?.duet_disabled}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                   />
-                  <span className="text-sm text-gray-700">Allow Duet</span>
+                  <span className="text-sm text-gray-700">
+                    Allow Duet
+                    {creatorInfo?.duet_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
+                  </span>
                 </label>
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label className={`flex items-center gap-3 ${creatorInfo?.stitch_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input
                     type="checkbox"
                     checked={allowStitch}
                     onChange={(e) => setAllowStitch(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    disabled={creatorInfo?.stitch_disabled}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                   />
-                  <span className="text-sm text-gray-700">Allow Stitch</span>
+                  <span className="text-sm text-gray-700">
+                    Allow Stitch
+                    {creatorInfo?.stitch_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
+                  </span>
                 </label>
               </div>
             </div>

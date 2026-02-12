@@ -120,6 +120,37 @@ func SetupRouter(cfg *config.Config, db *database.DB) *gin.Engine {
 			protected.GET("/auth/platforms", multiPlatformAuthHandler.GetConnectedPlatforms)
 			protected.DELETE("/auth/platforms/:platform", multiPlatformAuthHandler.DisconnectPlatform)
 
+			// TikTok-specific routes
+			protected.GET("/tiktok/creator-info", func(c *gin.Context) {
+				userID, err := middleware.GetUserID(c)
+				if err != nil {
+					c.JSON(401, gin.H{"error": "Not authenticated"})
+					return
+				}
+
+				token, err := tokenRepo.GetByUserIDAndPlatform(userID, models.PlatformTikTok)
+				if err != nil {
+					c.JSON(404, gin.H{"error": "TikTok account not connected"})
+					return
+				}
+
+				creatorInfo, err := tiktokService.GetCreatorInfo(token.AccessToken)
+				if err != nil {
+					c.JSON(500, gin.H{"error": "Failed to fetch creator info from TikTok"})
+					return
+				}
+
+				c.JSON(200, gin.H{
+					"creator_info": gin.H{
+						"privacy_level_options":       creatorInfo.PrivacyLevelOptions,
+						"max_video_post_duration_sec": creatorInfo.MaxVideoPostDurationSec,
+						"stitch_disabled":             creatorInfo.StitchDisabled,
+						"comment_disabled":            creatorInfo.CommentDisabled,
+						"duet_disabled":               creatorInfo.DuetDisabled,
+					},
+				})
+			})
+
 			// Post routes - using multi-platform handler
 			posts := protected.Group("/posts")
 			{

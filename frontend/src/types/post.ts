@@ -55,3 +55,12 @@ export interface PostsResponse {
   limit: number
   offset: number
 }
+
+// TikTok Creator Info from the Creator Info API
+export interface TikTokCreatorInfo {
+  privacy_level_options: string[]
+  max_video_post_duration_sec: number
+  stitch_disabled: boolean
+  comment_disabled: boolean
+  duet_disabled: boolean
+}

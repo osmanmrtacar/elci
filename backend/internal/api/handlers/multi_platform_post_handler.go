@@ -360,3 +360,4 @@ func (h *MultiPlatformPostHandler) GetPostStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
