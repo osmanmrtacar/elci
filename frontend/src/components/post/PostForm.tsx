@@ -244,9 +244,14 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
         setError('Please agree to the terms before posting to TikTok')
         return
       }
+      // Disclosure toggle on but no option selected
+      if (discloseContent && !isBrandContent && !isBrandOrganic) {
+        setError('You need to indicate if your content promotes yourself, a third party, or both')
+        return
+      }
       // Branded content cannot be private
       if (isBrandOrganic && privacyLevel === 'SELF_ONLY') {
-        setError('Branded content cannot be set to private')
+        setError('Branded content visibility cannot be set to private')
         return
       }
       // Video duration must not exceed creator's max
@@ -652,8 +657,13 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                 >
                   <option value="">-- Select privacy level --</option>
                   {privacyOptions.map(option => (
-                    <option key={option.value} value={option.value}>
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      disabled={option.value === 'SELF_ONLY' && isBrandOrganic}
+                    >
                       {option.label}{option.description ? ` - ${option.description}` : ''}
+                      {option.value === 'SELF_ONLY' && isBrandOrganic ? ' (unavailable for branded content)' : ''}
                     </option>
                   ))}
                 </select>
@@ -662,7 +672,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
             {/* Interaction Settings (disabled states from Creator Info API) */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">Interaction Settings</label>
+              <label className="block text-sm font-medium text-gray-700">Allow users to</label>
               <div className="space-y-2">
                 <label className={`flex items-center gap-3 ${creatorInfo?.comment_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input
@@ -673,36 +683,41 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                   />
                   <span className="text-sm text-gray-700">
-                    Allow Comments
+                    Comment
                     {creatorInfo?.comment_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
                   </span>
                 </label>
-                <label className={`flex items-center gap-3 ${creatorInfo?.duet_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                  <input
-                    type="checkbox"
-                    checked={allowDuet}
-                    onChange={(e) => setAllowDuet(e.target.checked)}
-                    disabled={creatorInfo?.duet_disabled}
-                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Allow Duet
-                    {creatorInfo?.duet_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
-                  </span>
-                </label>
-                <label className={`flex items-center gap-3 ${creatorInfo?.stitch_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                  <input
-                    type="checkbox"
-                    checked={allowStitch}
-                    onChange={(e) => setAllowStitch(e.target.checked)}
-                    disabled={creatorInfo?.stitch_disabled}
-                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Allow Stitch
-                    {creatorInfo?.stitch_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
-                  </span>
-                </label>
+                {/* Duet and Stitch only applicable to video posts */}
+                {detectedMediaType !== 'image' && (
+                  <>
+                    <label className={`flex items-center gap-3 ${creatorInfo?.duet_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        checked={allowDuet}
+                        onChange={(e) => setAllowDuet(e.target.checked)}
+                        disabled={creatorInfo?.duet_disabled}
+                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Duet
+                        {creatorInfo?.duet_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
+                      </span>
+                    </label>
+                    <label className={`flex items-center gap-3 ${creatorInfo?.stitch_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        checked={allowStitch}
+                        onChange={(e) => setAllowStitch(e.target.checked)}
+                        disabled={creatorInfo?.stitch_disabled}
+                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Stitch
+                        {creatorInfo?.stitch_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
+                      </span>
+                    </label>
+                  </>
+                )}
               </div>
             </div>
 
@@ -737,15 +752,21 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
               {discloseContent && (
                 <div className="space-y-3 pt-2">
-                  {/* Promotional content warning */}
+                  {/* Content label warning - changes based on selection */}
                   <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
                     <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                     <p className="text-xs text-amber-700">
-                      Your video will be labeled "Promotional content". This cannot be changed once your video is posted.
+                      {isBrandOrganic
+                        ? 'Your video will be labeled "Paid partnership". This cannot be changed once your video is posted.'
+                        : 'Your video will be labeled "Promotional content". This cannot be changed once your video is posted.'}
                     </p>
                   </div>
+
+                  {!isBrandContent && !isBrandOrganic && (
+                    <p className="text-xs text-red-500">You need to indicate if your content promotes yourself, a third party, or both.</p>
+                  )}
 
                   {/* Your Brand */}
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -766,7 +787,13 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     <input
                       type="checkbox"
                       checked={isBrandOrganic}
-                      onChange={(e) => setIsBrandOrganic(e.target.checked)}
+                      onChange={(e) => {
+                        setIsBrandOrganic(e.target.checked)
+                        // Auto-clear SELF_ONLY since branded content can't be private
+                        if (e.target.checked && privacyLevel === 'SELF_ONLY') {
+                          setPrivacyLevel('')
+                        }
+                      }}
                       className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
                     />
                     <div>
@@ -815,26 +842,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                 />
                 <span className="text-sm text-gray-600">
                   By posting, you agree to TikTok's{' '}
-                  <a
-                    href="https://www.tiktok.com/legal/terms-of-service"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:underline"
-                  >
-                    Terms of Service
-                  </a>{' '}
-                  and{' '}
-                  <a
-                    href="https://www.tiktok.com/legal/music-usage-confirmation"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:underline"
-                  >
-                    Music Usage Confirmation
-                  </a>
                   {isBrandOrganic && (
                     <>
-                      {' '}and{' '}
                       <a
                         href="https://www.tiktok.com/creators/creator-portal/en-us/getting-paid-to-create/branded-content-policy/"
                         target="_blank"
@@ -843,11 +852,25 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                       >
                         Branded Content Policy
                       </a>
+                      {' '}and{' '}
                     </>
                   )}
+                  <a
+                    href="https://www.tiktok.com/legal/music-usage-confirmation"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Music Usage Confirmation
+                  </a>
                   .
                 </span>
               </label>
+
+              {/* Processing notice */}
+              <p className="text-xs text-gray-400 mt-2 ml-8">
+                Your content may take a few minutes to process and appear on your TikTok profile.
+              </p>
             </div>
             </div>
             )}
@@ -864,9 +887,10 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting || activePlatforms.length === 0}
+          disabled={isSubmitting || activePlatforms.length === 0 || (isTikTokSelected && discloseContent && !isBrandContent && !isBrandOrganic)}
+          title={isTikTokSelected && discloseContent && !isBrandContent && !isBrandOrganic ? 'You need to indicate if your content promotes yourself, a third party, or both' : undefined}
           className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
-            isSubmitting || activePlatforms.length === 0
+            isSubmitting || activePlatforms.length === 0 || (isTikTokSelected && discloseContent && !isBrandContent && !isBrandOrganic)
               ? 'bg-gray-300 cursor-not-allowed'
               : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-lg hover:scale-[1.02]'
           }`}
