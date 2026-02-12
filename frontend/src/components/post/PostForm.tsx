@@ -12,6 +12,24 @@ type MediaType = 'video' | 'image' | 'unknown'
 
 const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.heif']
 const videoExtensions = ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.m4v', '.ts', '.3gp']
+const allMediaExtensions = [...imageExtensions, ...videoExtensions]
+
+const validateMediaUrl = (url: string): string | null => {
+  if (!url.trim()) return null // empty is ok, filtered out later
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return 'URL must start with http:// or https://'
+    }
+    const path = parsed.pathname.toLowerCase()
+    if (!allMediaExtensions.some(ext => path.endsWith(ext))) {
+      return 'URL must point to a supported media file (MP4, MOV, JPG, PNG, GIF, etc.)'
+    }
+    return null
+  } catch {
+    return 'Please enter a valid URL'
+  }
+}
 
 const detectMediaType = (url: string): MediaType => {
   if (!url) return 'unknown'
@@ -73,7 +91,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [creatorInfoLoading, setCreatorInfoLoading] = useState(false)
   const [creatorInfoError, setCreatorInfoError] = useState<string | null>(null)
 
-  // Media preview error tracking
+  // Media URL validation and preview error tracking
+  const [urlErrors, setUrlErrors] = useState<Record<number, string>>({})
   const [previewErrors, setPreviewErrors] = useState<Record<number, boolean>>({})
   const [videoDuration, setVideoDuration] = useState<number | null>(null)
 
@@ -152,7 +171,12 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
     const newUrls = [...mediaUrls]
     newUrls[index] = value
     setMediaUrls(newUrls)
-    // Clear preview error and video duration when URL changes
+    // Clear errors when URL changes
+    setUrlErrors(prev => {
+      const next = { ...prev }
+      delete next[index]
+      return next
+    })
     setPreviewErrors(prev => {
       const next = { ...prev }
       delete next[index]
@@ -170,6 +194,18 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
     if (validUrls.length === 0) {
       setError('Please enter at least one media URL')
+      return
+    }
+
+    // Validate all media URLs
+    const errors: Record<number, string> = {}
+    mediaUrls.forEach((url, index) => {
+      const err = validateMediaUrl(url)
+      if (err) errors[index] = err
+    })
+    if (Object.keys(errors).length > 0) {
+      setUrlErrors(errors)
+      setError('Please fix the invalid media URLs')
       return
     }
 
@@ -261,6 +297,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       setAgreedToTerms(false)
       setAutoAddMusic(false)
       setDirectPost(true)
+      setUrlErrors({})
       setPreviewErrors({})
       setVideoDuration(null)
 
@@ -310,14 +347,26 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
           </div>
 
           {mediaUrls.map((url, index) => (
-            <div key={index} className="flex gap-2">
+            <div key={index} className="space-y-1">
+              <div className="flex gap-2">
               <input
                 type="url"
                 value={url}
                 onChange={(e) => handleMediaUrlChange(index, e.target.value)}
+                onBlur={() => {
+                  const err = validateMediaUrl(url)
+                  setUrlErrors(prev => {
+                    if (err) return { ...prev, [index]: err }
+                    const next = { ...prev }
+                    delete next[index]
+                    return next
+                  })
+                }}
                 placeholder={`https://example.com/${index === 0 ? 'video.mp4' : `image${index + 1}.jpg`}`}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors"
+                className={`flex-1 px-4 py-3 border-2 rounded-xl focus:ring-0 transition-colors ${
+                  urlErrors[index] ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-indigo-500'
+                }`}
               />
               {mediaUrls.length > 1 && (
                 <button
@@ -331,6 +380,10 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
+              )}
+              </div>
+              {urlErrors[index] && (
+                <p className="text-xs text-red-500 pl-1">{urlErrors[index]}</p>
               )}
             </div>
           ))}
