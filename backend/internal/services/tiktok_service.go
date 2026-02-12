@@ -437,9 +437,7 @@ func (s *TikTokService) GetCreatorInfo(accessToken string) (*CreatorInfoResponse
 	}
 
 	var raw struct {
-		Data struct {
-			CreatorInfo CreatorInfoResponse `json:"creator_info"`
-		} `json:"data"`
+		Data  CreatorInfoResponse `json:"data"`
 		Error struct {
 			Code    string `json:"code"`
 			Message string `json:"message"`
@@ -453,7 +451,7 @@ func (s *TikTokService) GetCreatorInfo(accessToken string) (*CreatorInfoResponse
 		return nil, fmt.Errorf("TikTok API error: %s - %s", raw.Error.Code, raw.Error.Message)
 	}
 
-	return &raw.Data.CreatorInfo, nil
+	return &raw.Data, nil
 }
 
 // PublishPhotoFromURL publishes a photo post to TikTok from one or more image URLs
