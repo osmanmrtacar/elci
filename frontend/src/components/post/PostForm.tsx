@@ -60,6 +60,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [allowComment, setAllowComment] = useState(false)
   const [allowDuet, setAllowDuet] = useState(false)
   const [allowStitch, setAllowStitch] = useState(false)
+  const [discloseContent, setDiscloseContent] = useState(false)
   const [isBrandContent, setIsBrandContent] = useState(false)
   const [isBrandOrganic, setIsBrandOrganic] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
@@ -73,6 +74,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
   // Media preview error tracking
   const [previewErrors, setPreviewErrors] = useState<Record<number, boolean>>({})
+  const [videoDuration, setVideoDuration] = useState<number | null>(null)
 
   const isTikTokSelected = selectedPlatforms.includes('tiktok')
 
@@ -149,12 +151,13 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
     const newUrls = [...mediaUrls]
     newUrls[index] = value
     setMediaUrls(newUrls)
-    // Clear preview error for this URL when it changes
+    // Clear preview error and video duration when URL changes
     setPreviewErrors(prev => {
       const next = { ...prev }
       delete next[index]
       return next
     })
+    if (index === 0) setVideoDuration(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -209,6 +212,11 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
         setError('Branded content cannot be set to private')
         return
       }
+      // Video duration must not exceed creator's max
+      if (creatorInfo && videoDuration && detectedMediaType === 'video' && videoDuration > creatorInfo.max_video_post_duration_sec) {
+        setError(`Video duration (${videoDuration}s) exceeds the maximum allowed (${creatorInfo.max_video_post_duration_sec}s)`)
+        return
+      }
     }
 
     setIsSubmitting(true)
@@ -246,12 +254,14 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       setAllowComment(false)
       setAllowDuet(false)
       setAllowStitch(false)
+      setDiscloseContent(false)
       setIsBrandContent(false)
       setIsBrandOrganic(false)
       setAgreedToTerms(false)
       setAutoAddMusic(false)
       setDirectPost(true)
       setPreviewErrors({})
+      setVideoDuration(null)
 
       onPostCreated()
     } catch (err: any) {
@@ -357,6 +367,9 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                       src={url}
                       controls
                       className="w-full max-h-64 rounded-xl border border-gray-200 object-contain bg-black"
+                      onLoadedMetadata={(e) => {
+                        if (index === 0) setVideoDuration(Math.round(e.currentTarget.duration))
+                      }}
                       onError={() => setPreviewErrors(prev => ({ ...prev, [index]: true }))}
                     />
                   )
@@ -377,11 +390,22 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
         {/* Max video duration info from Creator Info API */}
         {isTikTokSelected && creatorInfo && detectedMediaType === 'video' && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${
+            videoDuration && videoDuration > creatorInfo.max_video_post_duration_sec
+              ? 'bg-red-50 border border-red-200 text-red-700'
+              : 'bg-blue-50 border border-blue-200 text-blue-700'
+          }`}>
             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Maximum video duration: {creatorInfo.max_video_post_duration_sec} seconds
+            <span>
+              Maximum video duration: {creatorInfo.max_video_post_duration_sec}s
+              {videoDuration != null && (
+                <> — Your video: {videoDuration}s
+                  {videoDuration > creatorInfo.max_video_post_duration_sec && ' (exceeds limit)'}
+                </>
+              )}
+            </span>
           </div>
         )}
 
@@ -482,7 +506,9 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
           <div className="bg-gray-50 rounded-xl p-5 space-y-5 border border-gray-200">
             <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white">
-                🎵
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                </svg>
               </div>
               <div>
                 <p className="font-medium text-gray-900">TikTok Settings</p>
@@ -609,39 +635,81 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
               </div>
             </div>
 
-            {/* Commercial Content Disclosure */}
+            {/* Disclose Video Content */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">Commercial Content Disclosure</label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isBrandContent}
-                    onChange={(e) => setIsBrandContent(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <div>
-                    <span className="text-sm text-gray-700 font-medium">Your Brand</span>
-                    <p className="text-xs text-gray-500">This content promotes yourself or your own business</p>
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isBrandOrganic}
-                    onChange={(e) => setIsBrandOrganic(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <div>
-                    <span className="text-sm text-gray-700 font-medium">Branded Content</span>
-                    <p className="text-xs text-gray-500">This is a paid partnership with a brand</p>
-                  </div>
-                </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">Disclose video content</label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={discloseContent}
+                  onClick={() => {
+                    const next = !discloseContent
+                    setDiscloseContent(next)
+                    if (!next) {
+                      setIsBrandContent(false)
+                      setIsBrandOrganic(false)
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    discloseContent ? 'bg-indigo-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    discloseContent ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
               </div>
-              {isBrandOrganic && privacyLevel === 'SELF_ONLY' && (
-                <p className="text-sm text-red-500 mt-2">
-                  ⚠️ Branded content cannot be set to private
-                </p>
+              <p className="text-xs text-gray-500">
+                Turn on to disclose that this video promotes goods or services in exchange for something of value. Your video could promote yourself, a third party, or both.
+              </p>
+
+              {discloseContent && (
+                <div className="space-y-3 pt-2">
+                  {/* Promotional content warning */}
+                  <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-xs text-amber-700">
+                      Your video will be labeled "Promotional content". This cannot be changed once your video is posted.
+                    </p>
+                  </div>
+
+                  {/* Your Brand */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isBrandContent}
+                      onChange={(e) => setIsBrandContent(e.target.checked)}
+                      className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm text-gray-700 font-medium">Your brand</span>
+                      <p className="text-xs text-gray-500">You are promoting yourself or your own business. This video will be classified as Brand Organic.</p>
+                    </div>
+                  </label>
+
+                  {/* Branded Content */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isBrandOrganic}
+                      onChange={(e) => setIsBrandOrganic(e.target.checked)}
+                      className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm text-gray-700 font-medium">Branded content</span>
+                      <p className="text-xs text-gray-500">You are promoting another brand or a third party. This video will be classified as Branded Content.</p>
+                    </div>
+                  </label>
+
+                  {isBrandOrganic && privacyLevel === 'SELF_ONLY' && (
+                    <p className="text-xs text-red-500">
+                      Branded content cannot be set to private.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
