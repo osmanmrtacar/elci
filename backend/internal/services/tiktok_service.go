@@ -430,6 +430,8 @@ func (s *TikTokService) GetCreatorInfo(accessToken string) (*CreatorInfoResponse
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	fmt.Printf("DEBUG GetCreatorInfo: status=%d response=%s\n", resp.StatusCode, string(responseBody))
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("TikTok API error: %s - %s", resp.Status, string(responseBody))
 	}
