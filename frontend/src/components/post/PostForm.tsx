@@ -60,6 +60,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [allowComment, setAllowComment] = useState(false)
   const [allowDuet, setAllowDuet] = useState(false)
   const [allowStitch, setAllowStitch] = useState(false)
+  const [tiktokSettingsOpen, setTiktokSettingsOpen] = useState(true)
   const [discloseContent, setDiscloseContent] = useState(false)
   const [isBrandContent, setIsBrandContent] = useState(false)
   const [isBrandOrganic, setIsBrandOrganic] = useState(false)
@@ -487,9 +488,16 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     )}
                     {connection.platform === 'youtube' && '▶️'}
                   </div>
-                  <span className="text-sm font-medium text-gray-700 capitalize">
-                    {connection.platform}
-                  </span>
+                  <div className="text-center">
+                    <span className="text-sm font-medium text-gray-700 capitalize block">
+                      {connection.platform}
+                    </span>
+                    {(connection.username || connection.display_name) && (
+                      <span className="text-xs text-gray-400 truncate block max-w-[100px]">
+                        @{connection.username || connection.display_name}
+                      </span>
+                    )}
+                  </div>
                   {selectedPlatforms.includes(connection.platform) && (
                     <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -503,20 +511,30 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
         {/* TikTok-specific settings (shown when TikTok is selected) */}
         {isTikTokSelected && tiktokConnection && (
-          <div className="bg-gray-50 rounded-xl p-5 space-y-5 border border-gray-200">
-            <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white">
+          <div className="bg-gray-50 rounded-xl border border-gray-200">
+            <button
+              type="button"
+              onClick={() => setTiktokSettingsOpen(prev => !prev)}
+              className="w-full flex items-center gap-3 p-5 cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white flex-shrink-0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
                 </svg>
               </div>
-              <div>
+              <div className="flex-1 text-left">
                 <p className="font-medium text-gray-900">TikTok Settings</p>
                 <p className="text-sm text-gray-500">
                   Posting as <span className="font-medium text-indigo-600">@{tiktokConnection.username || tiktokConnection.display_name}</span>
                 </p>
               </div>
-            </div>
+              <svg className={`w-5 h-5 text-gray-400 transition-transform ${tiktokSettingsOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {tiktokSettingsOpen && (
+            <div className="px-5 pb-5 space-y-5 border-t border-gray-200 pt-5">
 
             {/* Direct Post vs Send to Inbox (only for video posts) */}
             {detectedMediaType !== 'image' && (
@@ -778,6 +796,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                 </span>
               </label>
             </div>
+            </div>
+            )}
           </div>
         )}
 
