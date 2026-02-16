@@ -70,17 +70,17 @@ func (r *PostRepository) Create(post *Post) error {
 // GetByID retrieves a post by ID
 func (r *PostRepository) GetByID(id int64) (*Post, error) {
 	query := `
-		SELECT id, user_id, tiktok_post_id, video_url, caption, status, direct_post, error_message, created_at, published_at
+		SELECT id, user_id, platform, tiktok_post_id, platform_post_id, video_url, caption, media_type, status, direct_post, error_message, created_at, published_at
 		FROM posts WHERE id = ?
 	`
 	post := &Post{}
-	var tiktokPostID, errorMessage sql.NullString
+	var platform, tiktokPostID, platformPostID, mediaType, errorMessage sql.NullString
 	var publishedAt sql.NullTime
 	var directPost sql.NullBool
 
 	err := r.DB.QueryRow(query, id).Scan(
-		&post.ID, &post.UserID, &tiktokPostID, &post.VideoURL, &post.Caption,
-		&post.Status, &directPost, &errorMessage, &post.CreatedAt, &publishedAt,
+		&post.ID, &post.UserID, &platform, &tiktokPostID, &platformPostID, &post.VideoURL, &post.Caption,
+		&mediaType, &post.Status, &directPost, &errorMessage, &post.CreatedAt, &publishedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("post not found")
@@ -89,8 +89,17 @@ func (r *PostRepository) GetByID(id int64) (*Post, error) {
 		return nil, fmt.Errorf("failed to get post: %w", err)
 	}
 
+	if platform.Valid {
+		post.Platform = Platform(platform.String)
+	}
 	if tiktokPostID.Valid {
 		post.TikTokPostID = tiktokPostID.String
+	}
+	if platformPostID.Valid {
+		post.PlatformPostID = platformPostID.String
+	}
+	if mediaType.Valid {
+		post.MediaType = mediaType.String
 	}
 	if directPost.Valid {
 		post.DirectPost = new(bool)
@@ -109,7 +118,7 @@ func (r *PostRepository) GetByID(id int64) (*Post, error) {
 // GetByUserID retrieves all posts for a user
 func (r *PostRepository) GetByUserID(userID int64, limit, offset int) ([]*Post, error) {
 	query := `
-		SELECT id, user_id, tiktok_post_id, video_url, caption, status, direct_post, error_message, created_at, published_at
+		SELECT id, user_id, platform, tiktok_post_id, platform_post_id, video_url, caption, media_type, status, direct_post, error_message, created_at, published_at
 		FROM posts
 		WHERE user_id = ?
 		ORDER BY created_at DESC
@@ -124,24 +133,33 @@ func (r *PostRepository) GetByUserID(userID int64, limit, offset int) ([]*Post, 
 	var posts []*Post
 	for rows.Next() {
 		post := &Post{}
-		var tiktokPostID, errorMessage sql.NullString
+		var platform, tiktokPostID, platformPostID, mediaType, errorMessage sql.NullString
 		var publishedAt sql.NullTime
 		var directPost sql.NullBool
 
 		err := rows.Scan(
-			&post.ID, &post.UserID, &tiktokPostID, &post.VideoURL, &post.Caption,
-			&post.Status, &directPost, &errorMessage, &post.CreatedAt, &publishedAt,
+			&post.ID, &post.UserID, &platform, &tiktokPostID, &platformPostID, &post.VideoURL, &post.Caption,
+			&mediaType, &post.Status, &directPost, &errorMessage, &post.CreatedAt, &publishedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan post: %w", err)
 		}
 
+		if platform.Valid {
+			post.Platform = Platform(platform.String)
+		}
 		if tiktokPostID.Valid {
 			post.TikTokPostID = tiktokPostID.String
+		}
+		if platformPostID.Valid {
+			post.PlatformPostID = platformPostID.String
 		}
 		if directPost.Valid {
 			post.DirectPost = new(bool)
 			*post.DirectPost = directPost.Bool
+		}
+		if mediaType.Valid {
+			post.MediaType = mediaType.String
 		}
 		if errorMessage.Valid {
 			post.ErrorMessage = errorMessage.String
