@@ -752,17 +752,28 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
               {discloseContent && (
                 <div className="space-y-3 pt-2">
-                  {/* Content label warning - changes based on selection */}
-                  <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                    <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    <p className="text-xs text-amber-700">
-                      {isBrandOrganic
-                        ? 'Your video will be labeled "Paid partnership". This cannot be changed once your video is posted.'
-                        : 'Your video will be labeled "Promotional content". This cannot be changed once your video is posted.'}
-                    </p>
-                  </div>
+                  {/* Point 3a - Content label warning - shows based on selection */}
+                  {isBrandContent && !isBrandOrganic && (
+                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs text-amber-700">
+                        Your video will be labeled "Promotional content". This cannot be changed once your video is posted.
+                      </p>
+                    </div>
+                  )}
+
+                  {(isBrandOrganic || (isBrandContent && isBrandOrganic)) && (
+                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs text-amber-700">
+                        Your video will be labeled "Paid partnership". This cannot be changed once your video is posted.
+                      </p>
+                    </div>
+                  )}
 
                   {!isBrandContent && !isBrandOrganic && (
                     <p className="text-xs text-red-500">You need to indicate if your content promotes yourself, a third party, or both.</p>
@@ -789,7 +800,6 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                       checked={isBrandOrganic}
                       onChange={(e) => {
                         setIsBrandOrganic(e.target.checked)
-                        // Auto-clear SELF_ONLY since branded content can't be private
                         if (e.target.checked && privacyLevel === 'SELF_ONLY') {
                           setPrivacyLevel('')
                         }
@@ -802,10 +812,21 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     </div>
                   </label>
 
-                  {isBrandOrganic && privacyLevel === 'SELF_ONLY' && (
-                    <p className="text-xs text-red-500">
-                      Branded content cannot be set to private.
-                    </p>
+                  {/* Point 3b - Privacy Management: Show behavior when privacy is Private + different checkbox combinations */}
+                  {discloseContent && privacyLevel === 'SELF_ONLY' && (
+                    <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-xs text-gray-600">
+                        <strong>Privacy setting: Private (Only me)</strong>
+                        <br />
+                        {isBrandOrganic ? (
+                          <span className="text-red-500">Branded content visibility cannot be set to private. Please change visibility to continue.</span>
+                        ) : isBrandContent ? (
+                          <span>Your video will be labeled "Promotional content" but may not be visible to others due to private visibility.</span>
+                        ) : (
+                          <span>Your video will be posted privately and will not be visible to others.</span>
+                        )}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -830,7 +851,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
               </div>
             )}
 
-            {/* Consent Statement */}
+            {/* Point 2 & 4 - Consent Statement */}
             <div className="pt-3 border-t border-gray-200">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -842,10 +863,11 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                 />
                 <span className="text-sm text-gray-600">
                   By posting, you agree to TikTok's{' '}
-                  {isBrandOrganic && (
+                  {/* Point 4 - Show Branded Content Policy only when Branded Content checkbox is selected */}
+                  {isBrandOrganic ? (
                     <>
                       <a
-                        href="https://www.tiktok.com/creators/creator-portal/en-us/getting-paid-to-create/branded-content-policy/"
+                        href="https://www.tiktok.com/legal/page/global/bc-policy/en"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-indigo-600 hover:underline"
@@ -854,7 +876,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                       </a>
                       {' '}and{' '}
                     </>
-                  )}
+                  ) : null}
                   <a
                     href="https://www.tiktok.com/legal/music-usage-confirmation"
                     target="_blank"
@@ -867,9 +889,11 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                 </span>
               </label>
 
-              {/* Processing notice */}
+              {/* Point 5d - Processing notice - different for Direct Post vs Send to Inbox */}
               <p className="text-xs text-gray-400 mt-2 ml-8">
-                Your content may take a few minutes to process and appear on your TikTok profile.
+                {detectedMediaType !== 'image' && !directPost
+                  ? 'Your content will be sent to your TikTok inbox for review before publishing.'
+                  : 'Your content may take a few minutes to process and appear on your TikTok profile.'}
               </p>
             </div>
             </div>
