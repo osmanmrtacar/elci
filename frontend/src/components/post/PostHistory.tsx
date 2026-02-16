@@ -249,6 +249,13 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
           white-space: nowrap;
         }
 
+        .platform-badge svg {
+          width: 14px;
+          height: 14px;
+          display: block;
+          flex-shrink: 0;
+        }
+
         .platform-link {
           display: inline-block;
           margin-top: 12px;
