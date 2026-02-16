@@ -18,8 +18,8 @@ const PostStatus = ({ status: initialStatus, postId }: PostStatusProps) => {
           const data = await postService.getPostStatus(postId)
           setStatus(data.status)
 
-          // Stop polling if post is complete or failed
-          if (data.status === 'published' || data.status === 'failed') {
+          // Stop polling if post is complete, sent to inbox, or failed
+          if (data.status === 'published' || data.status === 'sent_to_inbox' || data.status === 'failed') {
             clearInterval(interval)
           }
         } catch (error) {
@@ -34,15 +34,17 @@ const PostStatus = ({ status: initialStatus, postId }: PostStatusProps) => {
   const getStatusConfig = () => {
     switch (status) {
       case 'pending':
-        return { label: 'Pending', color: '#ffa500', icon: '⏳' }
+        return { label: 'Pending', color: '#ffa500', icon: '' }
       case 'processing':
-        return { label: 'Processing', color: '#2196f3', icon: '🔄' }
+        return { label: 'Processing', color: '#2196f3', icon: '' }
       case 'published':
-        return { label: 'Published', color: '#4caf50', icon: '✅' }
+        return { label: 'Published', color: '#4caf50', icon: '' }
+      case 'sent_to_inbox':
+        return { label: 'Sent to inbox', color: '#2196f3', icon: '' }
       case 'failed':
-        return { label: 'Failed', color: '#f44336', icon: '❌' }
+        return { label: 'Failed', color: '#f44336', icon: '' }
       default:
-        return { label: status, color: '#999', icon: '❓' }
+        return { label: status, color: '#999', icon: '' }
     }
   }
 
@@ -59,13 +61,9 @@ const PostStatus = ({ status: initialStatus, postId }: PostStatusProps) => {
           borderRadius: '12px',
           fontSize: '12px',
           fontWeight: 'bold',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '4px',
         }}
       >
-        <span>{config.icon}</span>
-        <span>{config.label}</span>
+        {config.label}
       </span>
     </div>
   )

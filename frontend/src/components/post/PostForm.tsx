@@ -281,8 +281,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
       await postService.createPost({
         platforms: selectedPlatforms,
-        media_url: validUrls[0], // Primary URL for backwards compatibility
-        media_urls: validUrls,   // All URLs for carousel/multi-image
+        media_urls: validUrls,
         caption: caption,
         tiktok_settings: tiktokSettings,
       })

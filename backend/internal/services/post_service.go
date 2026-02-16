@@ -26,11 +26,13 @@ func NewPostService(postRepo *models.PostRepository, tokenService *TokenService,
 // CreatePost creates a new post and publishes it to TikTok
 func (s *PostService) CreatePost(userID int64, videoURL string, caption string) (*models.Post, error) {
 	// Create post record in database
+	directPost := true
 	post := &models.Post{
-		UserID:   userID,
-		VideoURL: videoURL,
-		Caption:  caption,
-		Status:   models.PostStatusPending,
+		UserID:     userID,
+		VideoURL:   videoURL,
+		Caption:    caption,
+		Status:     models.PostStatusPending,
+		DirectPost: &directPost,
 	}
 
 	if err := s.postRepo.Create(post); err != nil {

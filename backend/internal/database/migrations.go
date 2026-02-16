@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS posts (
     platform TEXT DEFAULT 'tiktok',
     media_type TEXT DEFAULT 'video',
     status TEXT DEFAULT 'pending',
+    direct_post BOOLEAN DEFAULT TRUE,
     error_message TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     published_at TIMESTAMP,

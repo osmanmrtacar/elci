@@ -229,9 +229,9 @@ func (s *TikTokPlatformService) CreatePost(accessToken string, content PostConte
 	}
 
 	// Inbox posts are done once TikTok accepts them; Direct Post needs polling
-	status := "processing"
+	status := string(models.PostStatusProcessing)
 	if content.TikTokSettings != nil && !content.TikTokSettings.DirectPost {
-		status = "published"
+		status = string(models.PostStatusSentToInbox)
 	}
 
 	return &PostResponse{
@@ -254,18 +254,18 @@ func (s *TikTokPlatformService) GetPostStatus(accessToken, postID string) (*Post
 
 	switch resp.Data.Status {
 	case "PUBLISH_COMPLETE":
-		status = "published"
+		status = string(models.PostStatusPublished)
 		if resp.Data.ShareID != "" {
 			shareURL = fmt.Sprintf("https://www.tiktok.com/@user/video/%s", resp.Data.ShareID)
 		}
 	case "SEND_TO_USER_INBOX":
-		status = "published"
+		status = string(models.PostStatusSentToInbox)
 	case "FAILED":
-		status = "failed"
+		status = string(models.PostStatusFailed)
 	case "PROCESSING_UPLOAD", "PROCESSING_DOWNLOAD":
-		status = "processing"
+		status = string(models.PostStatusProcessing)
 	default:
-		status = "processing"
+		status = string(models.PostStatusProcessing)
 	}
 
 	return &PostStatusResponse{

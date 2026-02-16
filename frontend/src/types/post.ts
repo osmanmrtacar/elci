@@ -1,6 +1,6 @@
 import { Platform } from './user'
 
-export type PostStatus = 'pending' | 'processing' | 'published' | 'failed'
+export type PostStatus = 'pending' | 'processing' | 'published' | 'sent_to_inbox' | 'failed'
 export type MediaType = 'video' | 'image'
 
 // TikTok Privacy Level options
@@ -32,6 +32,7 @@ export interface Post {
   // TikTok-specific fields
   title?: string
   privacy_level?: TikTokPrivacyLevel
+  direct_post?: boolean // true = Direct Post, false = Send to Inbox
   // Legacy fields (for backward compatibility)
   tiktok_post_id?: string
   tiktok_url?: string
@@ -42,8 +43,7 @@ export interface Post {
 
 export interface CreatePostRequest {
   platforms: Platform[]
-  media_url?: string                // Primary media URL (for single media)
-  media_urls?: string[]             // Multiple media URLs (for carousel/multi-image)
+  media_urls: string[]              // Multiple media URLs (for carousel/multi-image)
   caption: string
   // TikTok-specific settings
   tiktok_settings?: TikTokSettings

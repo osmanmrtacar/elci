@@ -463,13 +463,20 @@ func (s *MultiPlatformPostService) CreateMultiPlatformPost(userID int64, req Cre
 	}
 
 	for _, plt := range req.Platforms {
+		// Determine if this is a direct post or send to inbox
+		directPost := true
+		if plt == models.PlatformTikTok && req.TikTokSettings != nil {
+			directPost = req.TikTokSettings.DirectPost
+		}
+
 		post := &models.Post{
-			UserID:    userID,
-			Platform:  plt,
-			VideoURL:  primaryMediaURL, // Store primary URL in existing field
-			Caption:   req.Caption,
-			Status:    models.PostStatusPending,
-			MediaType: mediaType,
+			UserID:     userID,
+			Platform:   plt,
+			VideoURL:   primaryMediaURL, // Store primary URL in existing field
+			Caption:    req.Caption,
+			Status:     models.PostStatusPending,
+			MediaType:  mediaType,
+			DirectPost: &directPost,
 		}
 
 		if err := s.postRepo.Create(post); err != nil {

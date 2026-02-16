@@ -25,15 +25,15 @@ func NewMultiPlatformPostHandler(postService *services.MultiPlatformPostService)
 
 // TikTokSettings represents TikTok-specific post settings (required by TikTok UX Guidelines)
 type TikTokSettings struct {
-	Title          string `json:"title,omitempty"`           // Video title
-	PrivacyLevel   string `json:"privacy_level,omitempty"`   // PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, SELF_ONLY
-	AllowComment   bool   `json:"allow_comment"`             // Allow comments (default: false)
-	AllowDuet      bool   `json:"allow_duet"`                // Allow duet (default: false)
-	AllowStitch    bool   `json:"allow_stitch"`              // Allow stitch (default: false)
-	IsBrandContent bool   `json:"is_brand_content"`          // Promoting own brand
-	IsBrandOrganic bool   `json:"is_brand_organic"`          // Paid partnership
-	AutoAddMusic   bool   `json:"auto_add_music"`            // Auto-add music (for TikTok photo posts)
-	DirectPost     bool   `json:"direct_post"`               // Direct Post (true) vs Send to Inbox (false)
+	Title          string `json:"title,omitempty"`         // Video title
+	PrivacyLevel   string `json:"privacy_level,omitempty"` // PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, SELF_ONLY
+	AllowComment   bool   `json:"allow_comment"`           // Allow comments (default: false)
+	AllowDuet      bool   `json:"allow_duet"`              // Allow duet (default: false)
+	AllowStitch    bool   `json:"allow_stitch"`            // Allow stitch (default: false)
+	IsBrandContent bool   `json:"is_brand_content"`        // Promoting own brand
+	IsBrandOrganic bool   `json:"is_brand_organic"`        // Paid partnership
+	AutoAddMusic   bool   `json:"auto_add_music"`          // Auto-add music (for TikTok photo posts)
+	DirectPost     bool   `json:"direct_post"`             // Direct Post (true) vs Send to Inbox (false)
 }
 
 // CreatePostRequest represents the request to create a post on multiple platforms
@@ -193,13 +193,14 @@ func (h *MultiPlatformPostHandler) GetPosts(c *gin.Context) {
 	postList := make([]gin.H, 0, len(posts))
 	for _, post := range posts {
 		postData := gin.H{
-			"id":         post.ID,
-			"platform":   post.Platform,
-			"media_url":  post.VideoURL,
-			"caption":    post.Caption,
-			"status":     post.Status,
-			"media_type": post.MediaType,
-			"created_at": post.CreatedAt,
+			"id":          post.ID,
+			"platform":    post.Platform,
+			"media_url":   post.VideoURL,
+			"caption":     post.Caption,
+			"status":      post.Status,
+			"media_type":  post.MediaType,
+			"direct_post": post.DirectPost,
+			"created_at":  post.CreatedAt,
 		}
 
 		// Add platform-specific post ID and URL
@@ -360,4 +361,3 @@ func (h *MultiPlatformPostHandler) GetPostStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
-
