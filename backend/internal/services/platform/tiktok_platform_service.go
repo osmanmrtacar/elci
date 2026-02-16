@@ -251,11 +251,13 @@ func (s *TikTokPlatformService) GetPostStatus(accessToken, postID string) (*Post
 	// TikTok statuses: PUBLISH_COMPLETE, PROCESSING_UPLOAD, PROCESSING_DOWNLOAD, FAILED, etc.
 	status := "processing"
 	shareURL := ""
+	shareID := ""
 
 	switch resp.Data.Status {
 	case "PUBLISH_COMPLETE":
 		status = string(models.PostStatusPublished)
 		if resp.Data.ShareID != "" {
+			shareID = resp.Data.ShareID
 			shareURL = fmt.Sprintf("https://www.tiktok.com/@user/video/%s", resp.Data.ShareID)
 		}
 	case "SEND_TO_USER_INBOX":
@@ -271,6 +273,7 @@ func (s *TikTokPlatformService) GetPostStatus(accessToken, postID string) (*Post
 	return &PostStatusResponse{
 		Status:     status,
 		PostID:     resp.Data.PublishID,
+		ShareID:    shareID,
 		ShareURL:   shareURL,
 		FailReason: resp.Data.FailReason,
 	}, nil

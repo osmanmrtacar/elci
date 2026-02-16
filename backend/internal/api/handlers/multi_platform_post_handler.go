@@ -210,7 +210,18 @@ func (h *MultiPlatformPostHandler) GetPosts(c *gin.Context) {
 			// Generate platform-specific URLs
 			switch post.Platform {
 			case models.PlatformTikTok:
-				postData["share_url"] = "https://www.tiktok.com/@user/video/" + post.PlatformPostID
+				if post.Status == models.PostStatusPublished {
+					mediaPathMap := map[string]string{
+						"video":    "video",
+						"image":    "photo",
+						"carousel": "photo",
+					}
+					path := mediaPathMap[post.MediaType]
+					if path == "" {
+						path = "video"
+					}
+					postData["share_url"] = "https://www.tiktok.com/@user/" + path + "/" + post.PlatformPostID
+				}
 			case models.PlatformX:
 				postData["share_url"] = "https://twitter.com/i/web/status/" + post.PlatformPostID
 			case models.PlatformInstagram:

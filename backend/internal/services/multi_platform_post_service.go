@@ -288,6 +288,7 @@ func (a *platformServiceAdapter) GetPostStatus(accessToken string, postID string
 	return &PostStatusResponse{
 		Status:          respElem.FieldByName("Status").String(),
 		PostID:          respElem.FieldByName("PostID").String(),
+		ShareID:         respElem.FieldByName("ShareID").String(),
 		ShareURL:        respElem.FieldByName("ShareURL").String(),
 		FailReason:      respElem.FieldByName("FailReason").String(),
 		ProgressPercent: int(respElem.FieldByName("ProgressPercent").Int()),
@@ -354,6 +355,7 @@ type PostResponse struct {
 type PostStatusResponse struct {
 	Status          string
 	PostID          string
+	ShareID         string
 	ShareURL        string
 	FailReason      string
 	ProgressPercent int
@@ -695,7 +697,11 @@ func (s *MultiPlatformPostService) pollTikTokStatus(postID int64, userID int64, 
 		switch statusResp.Status {
 		case "published":
 			// Video successfully published
-			if err := s.postRepo.MarkPublishedWithPlatform(postID, publishID); err != nil {
+			platformPostID := publishID
+			if statusResp.ShareID != "" {
+				platformPostID = statusResp.ShareID
+			}
+			if err := s.postRepo.MarkPublishedWithPlatform(postID, platformPostID); err != nil {
 				log.Printf("Failed to mark post %d as published: %v", postID, err)
 			} else {
 				log.Printf("Post %d successfully published to TikTok", postID)

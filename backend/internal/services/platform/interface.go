@@ -86,6 +86,7 @@ type PostResponse struct {
 type PostStatusResponse struct {
 	Status          string // pending, processing, published, failed
 	PostID          string // Platform-specific post ID
+	ShareID         string // Platform-specific share ID (when available)
 	ShareURL        string // URL to view the post on the platform
 	FailReason      string // Reason for failure if status is failed
 	ProgressPercent int    // Progress percentage (for video processing)
