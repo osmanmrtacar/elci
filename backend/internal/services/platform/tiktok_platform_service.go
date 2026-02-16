@@ -154,17 +154,57 @@ func (s *TikTokPlatformService) CreatePost(accessToken string, content PostConte
 	// Convert platform TikTokSettings to services TikTokSettings
 	var tiktokSettings *services.TikTokPostSettings
 	if content.TikTokSettings != nil {
-		tiktokSettings = &services.TikTokPostSettings{
-			Title:          content.TikTokSettings.Title,
-			PrivacyLevel:   content.TikTokSettings.PrivacyLevel,
-			AllowComment:   content.TikTokSettings.AllowComment,
-			AllowDuet:      content.TikTokSettings.AllowDuet,
-			AllowStitch:    content.TikTokSettings.AllowStitch,
-			IsBrandContent: content.TikTokSettings.IsBrandContent,
-			IsBrandOrganic: content.TikTokSettings.IsBrandOrganic,
-			AutoAddMusic:   content.TikTokSettings.AutoAddMusic,
-			DirectPost:     content.TikTokSettings.DirectPost,
+		// Validate TikTok settings according to UX Guidelines
+		settings := content.TikTokSettings
+
+		// Privacy level is required (Point 2b)
+		if settings.PrivacyLevel == "" {
+			return nil, fmt.Errorf("privacy level is required for TikTok posts")
 		}
+
+		// Validate privacy level is one of the allowed values
+		validPrivacyLevels := map[string]bool{
+			"PUBLIC_TO_EVERYONE":    true,
+			"MUTUAL_FOLLOW_FRIENDS": true,
+			"FOLLOWER_OF_CREATOR":   true,
+			"SELF_ONLY":             true,
+		}
+		if !validPrivacyLevels[settings.PrivacyLevel] {
+			return nil, fmt.Errorf("invalid privacy level: %s", settings.PrivacyLevel)
+		}
+
+		// Branded content cannot be private (Point 3b)
+		if (settings.IsBrandContent || settings.IsBrandOrganic) && settings.PrivacyLevel == "SELF_ONLY" {
+			return nil, fmt.Errorf("branded content cannot be set to private visibility")
+		}
+
+		// Title max length is 150 characters (Point 2a)
+		if len(settings.Title) > 150 {
+			return nil, fmt.Errorf("title cannot exceed 150 characters")
+		}
+
+		// If DirectPost is enabled, brand_content_toggle must be set (Point 3)
+		isDirectPost := settings.DirectPost
+		if isDirectPost && !settings.IsBrandContent && !settings.IsBrandOrganic {
+			// This is handled by frontend, but we ensure it's false in API
+			settings.IsBrandContent = false
+			settings.IsBrandOrganic = false
+		}
+
+		tiktokSettings = &services.TikTokPostSettings{
+			Title:          settings.Title,
+			PrivacyLevel:   settings.PrivacyLevel,
+			AllowComment:   settings.AllowComment,
+			AllowDuet:      settings.AllowDuet,
+			AllowStitch:    settings.AllowStitch,
+			IsBrandContent: settings.IsBrandContent,
+			IsBrandOrganic: settings.IsBrandOrganic,
+			AutoAddMusic:   settings.AutoAddMusic,
+			DirectPost:     settings.DirectPost,
+		}
+	} else {
+		// If no settings provided, return error (privacy level is required)
+		return nil, fmt.Errorf("TikTok settings are required including privacy level")
 	}
 
 	var resp *services.PublishVideoResponse
