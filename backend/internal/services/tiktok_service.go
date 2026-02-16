@@ -18,8 +18,8 @@ const (
 	tiktokPublishURL     = "https://open.tiktokapis.com/v2/post/publish/video/init/"
 	tiktokInboxURL       = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
 	tiktokPublishStatus  = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
-	tiktokContentInitURL  = "https://open.tiktokapis.com/v2/post/publish/content/init/"
-	tiktokCreatorInfoURL  = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
+	tiktokContentInitURL = "https://open.tiktokapis.com/v2/post/publish/content/init/"
+	tiktokCreatorInfoURL = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
 )
 
 type TikTokService struct {
@@ -460,6 +460,12 @@ func (s *TikTokService) PublishPhotoFromURL(accessToken string, imageURLs []stri
 		return nil, fmt.Errorf("at least one image URL is required")
 	}
 
+	// Determine post mode first
+	useDirectPost := true
+	if settings != nil {
+		useDirectPost = settings.DirectPost
+	}
+
 	// Build post_info with settings
 	postInfo := map[string]interface{}{
 		"title":       caption,
@@ -473,22 +479,34 @@ func (s *TikTokService) PublishPhotoFromURL(accessToken string, imageURLs []stri
 			postInfo["title"] = settings.Title
 		}
 
-		// Privacy level (required - user must select, no default)
+		// Privacy level (required for DIRECT POST - user must select, no default)
 		if settings.PrivacyLevel != "" {
 			postInfo["privacy_level"] = settings.PrivacyLevel
 		}
 
 		// Interaction settings (default: disabled per UX guidelines)
-		postInfo["disable_comment"] = !settings.AllowComment
-
-		// Commercial content disclosure
-		if settings.IsBrandContent || settings.IsBrandOrganic {
-			postInfo["brand_content_toggle"] = true
-			postInfo["brand_organic_toggle"] = settings.IsBrandOrganic
+		// Only for DIRECT POST
+		if useDirectPost {
+			postInfo["disable_comment"] = !settings.AllowComment
 		}
 
-		// Auto-add music for photo posts (TikTok auto-selects trending music)
-		postInfo["auto_add_music"] = settings.AutoAddMusic
+		// Commercial content disclosure (Only for DIRECT POST)
+		if useDirectPost {
+			postInfo["brand_content_toggle"] = settings.IsBrandContent || settings.IsBrandOrganic
+			if settings.IsBrandOrganic {
+				postInfo["brand_organic_toggle"] = true
+			}
+		}
+
+		// Auto-add music for photo posts (Only for DIRECT POST)
+		if useDirectPost {
+			postInfo["auto_add_music"] = settings.AutoAddMusic
+		}
+	}
+
+	postMode := "DIRECT_POST"
+	if !useDirectPost {
+		postMode = "MEDIA_UPLOAD"
 	}
 
 	requestBody := map[string]interface{}{
@@ -498,7 +516,7 @@ func (s *TikTokService) PublishPhotoFromURL(accessToken string, imageURLs []stri
 			"photo_cover_index": 0,
 			"photo_images":      imageURLs,
 		},
-		"post_mode":  "DIRECT_POST",
+		"post_mode":  postMode,
 		"media_type": "PHOTO",
 	}
 

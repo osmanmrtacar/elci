@@ -127,7 +127,7 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
               <option value="all">All Platforms ({posts.length})</option>
               {availablePlatforms.map(platform => (
                 <option key={platform} value={platform}>
-                  {getPlatformIcon(platform)} {platform.toUpperCase()} ({posts.filter(p => p.platform === platform).length})
+                  {platform.toUpperCase()} ({posts.filter(p => p.platform === platform).length})
                 </option>
               ))}
             </select>

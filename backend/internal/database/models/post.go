@@ -281,3 +281,17 @@ func (r *PostRepository) MarkPublishedWithPlatform(id int64, platformPostID stri
 	}
 	return nil
 }
+
+// MarkSentToInboxWithPlatform marks a post as sent to inbox with platform-specific post ID
+func (r *PostRepository) MarkSentToInboxWithPlatform(id int64, platformPostID string) error {
+	query := `
+		UPDATE posts
+		SET status = ?, platform_post_id = ?, error_message = NULL
+		WHERE id = ?
+	`
+	_, err := r.DB.Exec(query, PostStatusSentToInbox, platformPostID, id)
+	if err != nil {
+		return fmt.Errorf("failed to mark post as sent to inbox: %w", err)
+	}
+	return nil
+}
