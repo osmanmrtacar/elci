@@ -8,7 +8,6 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
   const [posts, setPosts] = useState<Post[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [platformFilter, setPlatformFilter] = useState<Platform | 'all'>('all')
 
   useEffect(() => {
     fetchPosts()
@@ -29,7 +28,18 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleString()
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
   }
 
   const getPlatformIcon = (platform: Platform) => {
@@ -66,28 +76,25 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
   const getPlatformColor = (platform: Platform) => {
     switch (platform) {
       case 'tiktok':
-        return '#fe2c55'
+        return '#111827'
       case 'x':
-        return '#000000'
+        return '#111827'
       case 'instagram':
-        return '#E1306C'
+        return 'linear-gradient(135deg, #a855f7 0%, #ec4899 45%, #fb923c 100%)'
       case 'youtube':
-        return '#FF0000'
+        return '#dc2626'
       default:
-        return '#666'
+        return '#4b5563'
     }
   }
-
-  const filteredPosts = platformFilter === 'all'
-    ? posts
-    : posts.filter(post => post.platform === platformFilter)
-
-  const availablePlatforms = Array.from(new Set(posts.map(post => post.platform)))
 
   if (isLoading) {
     return (
       <div className="post-history-container">
-        <h2>Post History</h2>
+        <div className="history-header">
+          <h2>Recent Posts</h2>
+          <a className="view-all" href="/history">View all</a>
+        </div>
         <div className="loading-spinner"></div>
       </div>
     )
@@ -96,7 +103,10 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
   if (error) {
     return (
       <div className="post-history-container">
-        <h2>Post History</h2>
+        <div className="history-header">
+          <h2>Recent Posts</h2>
+          <a className="view-all" href="/history">View all</a>
+        </div>
         <div className="error-message">{error}</div>
       </div>
     )
@@ -105,8 +115,14 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
   if (posts.length === 0) {
     return (
       <div className="post-history-container">
-        <h2>Post History</h2>
-        <p className="empty-state">No posts yet. Create your first post above!</p>
+        <div className="history-header">
+          <h2>Recent Posts</h2>
+          <a className="view-all" href="/history">View all</a>
+        </div>
+        <div className="empty-state">
+          <div className="empty-icon"></div>
+          <p>No posts yet</p>
+        </div>
       </div>
     )
   }
@@ -114,48 +130,30 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
   return (
     <div className="post-history-container">
       <div className="history-header">
-        <h2>Post History</h2>
-        {availablePlatforms.length > 1 && (
-          <div className="platform-filter">
-            <label htmlFor="platform-filter">Filter by platform:</label>
-            <select
-              id="platform-filter"
-              value={platformFilter}
-              onChange={(e) => setPlatformFilter(e.target.value as Platform | 'all')}
-              className="filter-select"
-            >
-              <option value="all">All Platforms ({posts.length})</option>
-              {availablePlatforms.map(platform => (
-                <option key={platform} value={platform}>
-                  {platform.toUpperCase()} ({posts.filter(p => p.platform === platform).length})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <h2>Recent Posts</h2>
+        <a className="view-all" href="/history">View all</a>
       </div>
 
       <div className="posts-list">
-        {filteredPosts.map((post) => (
+        {posts.map((post) => (
           <div key={post.id} className="post-card">
             <div className="post-header">
               <div className="header-left">
                 <span
                   className="platform-badge"
-                  style={{ backgroundColor: getPlatformColor(post.platform) }}
+                  style={{ background: getPlatformColor(post.platform) }}
                 >
-                  {getPlatformIcon(post.platform)} {post.platform.toUpperCase()}
+                  {getPlatformIcon(post.platform)}
+                  <span className="platform-text">{post.platform.toUpperCase()}</span>
                 </span>
                 <PostStatus status={post.status} postId={post.id} />
               </div>
               <span className="post-date">{formatDate(post.created_at)}</span>
             </div>
 
-            <div className="post-content">
-              <p className="post-caption">
-                {post.caption || <em>No caption</em>}
-              </p>
-            </div>
+            <p className="post-caption">
+              {post.caption || <em>No caption</em>}
+            </p>
 
             {(post.share_url || post.tiktok_url) && (
               <a
@@ -163,9 +161,9 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="platform-link"
-                style={{ borderColor: getPlatformColor(post.platform) }}
               >
-                View on {post.platform.toUpperCase()} →
+                <span>View post</span>
+                <span className="link-arrow">↗</span>
               </a>
             )}
 
@@ -179,73 +177,78 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
       </div>
 
       <style>{`
+        .post-history-container {
+          background: white;
+        }
+
         .history-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 20px;
-          flex-wrap: wrap;
-          gap: 12px;
+          margin-bottom: 16px;
         }
 
         .history-header h2 {
           margin: 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: #111827;
         }
 
-        .platform-filter {
+        .view-all {
+          font-size: 12px;
+          color: #6b7280;
+          text-decoration: none;
+          transition: color 0.2s ease;
+        }
+
+        .view-all:hover {
+          color: #111827;
+        }
+
+        .posts-list {
           display: flex;
-          align-items: center;
-          gap: 8px;
+          flex-direction: column;
+          gap: 12px;
         }
 
-        .platform-filter label {
-          font-size: 14px;
-          color: #666;
+        .post-card {
+          background: #f9fafb;
+          border: 1px solid #f3f4f6;
+          border-radius: 10px;
+          padding: 14px 16px;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .filter-select {
-          padding: 8px 12px;
-          border: 2px solid #e0e0e0;
-          border-radius: 6px;
-          font-size: 14px;
-          background: white;
-          cursor: pointer;
-          transition: border-color 0.2s ease;
-        }
-
-        .filter-select:hover {
-          border-color: #4CAF50;
-        }
-
-        .filter-select:focus {
-          outline: none;
-          border-color: #4CAF50;
+        .post-card:hover {
+          border-color: #e5e7eb;
+          box-shadow: 0 4px 12px rgba(17, 24, 39, 0.06);
         }
 
         .post-header {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 12px;
+          align-items: center;
+          margin-bottom: 8px;
           gap: 12px;
         }
 
         .header-left {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
           flex-wrap: wrap;
         }
 
         .platform-badge {
           display: inline-flex;
           align-items: center;
-          gap: 4px;
-          padding: 4px 10px;
-          border-radius: 4px;
-          font-size: 12px;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-size: 11px;
           font-weight: 600;
-          color: white;
+          color: #ffffff;
           white-space: nowrap;
         }
 
@@ -256,21 +259,65 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
           flex-shrink: 0;
         }
 
+        .platform-text {
+          letter-spacing: 0.02em;
+        }
+
+        .post-date {
+          font-size: 12px;
+          color: #6b7280;
+          white-space: nowrap;
+        }
+
+        .post-caption {
+          font-size: 14px;
+          color: #374151;
+          margin: 0 0 10px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
         .platform-link {
-          display: inline-block;
-          margin-top: 12px;
-          padding: 8px 16px;
-          color: #1976d2;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          color: #9ca3af;
           text-decoration: none;
           font-weight: 500;
-          border: 2px solid;
-          border-radius: 6px;
-          transition: all 0.2s ease;
+          opacity: 0;
+          transition: color 0.2s ease, opacity 0.2s ease;
+        }
+
+        .post-card:hover .platform-link {
+          opacity: 1;
         }
 
         .platform-link:hover {
-          background: #f0f7ff;
-          transform: translateX(4px);
+          color: #111827;
+        }
+
+        .link-arrow {
+          font-size: 12px;
+        }
+
+        .empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          padding: 32px 0;
+          color: #6b7280;
+          font-size: 14px;
+        }
+
+        .empty-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 999px;
+          background: #f3f4f6;
         }
       `}</style>
     </div>
