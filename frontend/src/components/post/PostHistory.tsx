@@ -93,7 +93,6 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
       <div className="post-history-container">
         <div className="history-header">
           <h2>Recent Posts</h2>
-          <a className="view-all" href="/history">View all</a>
         </div>
         <div className="loading-spinner"></div>
       </div>
@@ -105,7 +104,6 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
       <div className="post-history-container">
         <div className="history-header">
           <h2>Recent Posts</h2>
-          <a className="view-all" href="/history">View all</a>
         </div>
         <div className="error-message">{error}</div>
       </div>
@@ -117,7 +115,6 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
       <div className="post-history-container">
         <div className="history-header">
           <h2>Recent Posts</h2>
-          <a className="view-all" href="/history">View all</a>
         </div>
         <div className="empty-state">
           <div className="empty-icon"></div>
@@ -131,7 +128,6 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
     <div className="post-history-container">
       <div className="history-header">
         <h2>Recent Posts</h2>
-        <a className="view-all" href="/history">View all</a>
       </div>
 
       <div className="posts-list">
@@ -146,6 +142,8 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
                   {getPlatformIcon(post.platform)}
                   <span className="platform-text">{post.platform.toUpperCase()}</span>
                 </span>
+              </div>
+              <div className="header-center">
                 <PostStatus status={post.status} postId={post.id} />
               </div>
               <span className="post-date">{formatDate(post.created_at)}</span>
@@ -177,10 +175,6 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
       </div>
 
       <style>{`
-        .post-history-container {
-          background: white;
-        }
-
         .history-header {
           display: flex;
           justify-content: space-between;
@@ -192,17 +186,6 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
           margin: 0;
           font-size: 14px;
           font-weight: 600;
-          color: #111827;
-        }
-
-        .view-all {
-          font-size: 12px;
-          color: #6b7280;
-          text-decoration: none;
-          transition: color 0.2s ease;
-        }
-
-        .view-all:hover {
           color: #111827;
         }
 
@@ -226,8 +209,8 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
         }
 
         .post-header {
-          display: flex;
-          justify-content: space-between;
+          display: grid;
+          grid-template-columns: auto 1fr auto;
           align-items: center;
           margin-bottom: 8px;
           gap: 12px;
@@ -238,6 +221,12 @@ const PostHistory = ({ refreshTrigger }: { refreshTrigger: number }) => {
           align-items: center;
           gap: 10px;
           flex-wrap: wrap;
+        }
+
+        .header-center {
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .platform-badge {
