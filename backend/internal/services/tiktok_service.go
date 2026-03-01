@@ -276,7 +276,7 @@ func (s *TikTokService) PublishVideoFromURL(accessToken string, videoURL string,
 		// Commercial content disclosure (brand_content_toggle is required by Direct Post API only)
 		if useDirectPost {
 			postInfo["brand_content_toggle"] = settings.IsBrandContent || settings.IsBrandOrganic
-			if settings.IsBrandOrganic {
+			if settings.IsBrandContent {
 				postInfo["brand_organic_toggle"] = true
 			}
 		}
@@ -493,7 +493,7 @@ func (s *TikTokService) PublishPhotoFromURL(accessToken string, imageURLs []stri
 		// Commercial content disclosure (Only for DIRECT POST)
 		if useDirectPost {
 			postInfo["brand_content_toggle"] = settings.IsBrandContent || settings.IsBrandOrganic
-			if settings.IsBrandOrganic {
+			if settings.IsBrandContent {
 				postInfo["brand_organic_toggle"] = true
 			}
 		}
