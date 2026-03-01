@@ -92,7 +92,10 @@ func SetupRouter(cfg *config.Config, db *database.DB) *gin.Engine {
 		platformConnectionRepo,
 		oauthSessionRepo,
 	)
-	multiPlatformPostHandler := handlers.NewMultiPlatformPostHandler(multiPlatformPostService)
+	multiPlatformPostHandler := handlers.NewMultiPlatformPostHandler(
+		multiPlatformPostService,
+		platformConnectionRepo,
+	)
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")
