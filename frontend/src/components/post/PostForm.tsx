@@ -751,32 +751,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
 
               {discloseContent && (
                 <div className="space-y-3 pt-2">
-                  {/* Point 3a - Content label warning - shows based on selection */}
-                  {isBrandContent && !isBrandOrganic && (
-                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      <p className="text-xs text-amber-700">
-                        Your video will be labeled "Promotional content". This cannot be changed once your video is posted.
-                      </p>
-                    </div>
-                  )}
-
-                  {(isBrandOrganic || (isBrandContent && isBrandOrganic)) && (
-                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      <p className="text-xs text-amber-700">
-                        Your video will be labeled "Paid partnership". This cannot be changed once your video is posted.
-                      </p>
-                    </div>
-                  )}
-
-                  {!isBrandContent && !isBrandOrganic && (
-                    <p className="text-xs text-red-500">You need to indicate if your content promotes yourself, a third party, or both.</p>
-                  )}
+                  {/* Point 3 - Checkboxes first, then label notice */}
 
                   {/* Your Brand */}
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -811,8 +786,36 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     </div>
                   </label>
 
-                  {/* Point 3b - Privacy Management: Show behavior when privacy is Private + different checkbox combinations */}
-                  {discloseContent && privacyLevel === 'SELF_ONLY' && (
+                  {/* Error if neither selected */}
+                  {!isBrandContent && !isBrandOrganic && (
+                    <p className="text-xs text-red-500">You need to indicate if your content promotes yourself, a third party, or both.</p>
+                  )}
+
+                  {/* Point 3a - Content label notice (shown after checkbox selection) */}
+                  {isBrandContent && !isBrandOrganic && (
+                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs text-amber-700">
+                        Your video will be labeled "Promotional content". This cannot be changed once your video is posted.
+                      </p>
+                    </div>
+                  )}
+
+                  {isBrandOrganic && (
+                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs text-amber-700">
+                        Your video will be labeled "Paid partnership". This cannot be changed once your video is posted.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Point 3b - Privacy Management */}
+                  {privacyLevel === 'SELF_ONLY' && (
                     <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                       <p className="text-xs text-gray-600">
                         <strong>Privacy setting: Private (Only me)</strong>
