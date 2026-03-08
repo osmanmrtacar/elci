@@ -593,43 +593,169 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
             {tiktokSettingsOpen && (
             <div className="px-5 pb-5 space-y-5 border-t border-gray-200 pt-5">
 
-            {/* Direct Post vs Send to Inbox (only for video posts) */}
-            {detectedMediaType !== 'image' && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Publish Mode</label>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDirectPost(true)}
-                    className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                      directPost
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    Direct Post
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDirectPost(false)}
-                    className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                      !directPost
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    Send to Inbox
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500">
-                  {directPost
-                    ? 'Video will be published automatically to your TikTok account.'
-                    : 'Video will be sent to your TikTok inbox for manual review before publishing.'}
-                </p>
+            {/* ── Point 1: Content Disclosure Setting toggle (OFF by default) ── */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">Content Disclosure Setting</label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={discloseContent}
+                  onClick={() => {
+                    const next = !discloseContent
+                    setDiscloseContent(next)
+                    if (!next) {
+                      setIsBrandContent(false)
+                      setIsBrandOrganic(false)
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    discloseContent ? 'bg-indigo-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    discloseContent ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
               </div>
-            )}
+              <p className="text-xs text-gray-500">
+                Turn on to disclose that this video promotes goods or services in exchange for something of value. Your video could promote yourself, a third party, or both.
+              </p>
 
-            {/* Privacy Level (Required - dynamically populated from Creator Info API) */}
+              {/* ── Point 3: Checkboxes (shown when toggle is ON) ── */}
+              {discloseContent && (
+                <div className="space-y-3 pt-2 border-t border-gray-100">
+
+                  {/* Point 3 – Your Brand */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isBrandContent}
+                      onChange={(e) => setIsBrandContent(e.target.checked)}
+                      className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm text-gray-700 font-medium">Your brand</span>
+                      <p className="text-xs text-gray-500">You are promoting yourself or your own business. This video will be classified as Brand Organic.</p>
+                    </div>
+                  </label>
+
+                  {/* Point 3 – Branded Content */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isBrandOrganic}
+                      onChange={(e) => {
+                        setIsBrandOrganic(e.target.checked)
+                        if (e.target.checked && privacyLevel === 'SELF_ONLY') {
+                          setPrivacyLevel('')
+                        }
+                      }}
+                      className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm text-gray-700 font-medium">Branded content</span>
+                      <p className="text-xs text-gray-500">You are promoting another brand or a third party. This video will be classified as Branded Content.</p>
+                    </div>
+                  </label>
+
+                  {/* Error if neither selected */}
+                  {!isBrandContent && !isBrandOrganic && (
+                    <p className="text-xs text-red-500">You need to indicate if your content promotes yourself, a third party, or both.</p>
+                  )}
+
+                  {/* Point 3a – Content label notice after selection */}
+                  {isBrandContent && !isBrandOrganic && (
+                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs text-amber-700">
+                        Your video will be labeled "Promotional content". This cannot be changed once your video is posted.
+                      </p>
+                    </div>
+                  )}
+
+                  {isBrandOrganic && (
+                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs text-amber-700">
+                        Your video will be labeled "Paid partnership". This cannot be changed once your video is posted.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Point 4 – Branded Content Policy link (shown only when Branded Content is checked) */}
+                  {isBrandOrganic && (
+                    <p className="text-xs text-gray-500">
+                      By enabling Branded Content, you agree to TikTok's{' '}
+                      <a
+                        href="https://www.tiktok.com/legal/page/global/bc-policy/en"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:underline"
+                      >
+                        Branded Content Policy
+                      </a>
+                      .
+                    </p>
+                  )}
+
+                  {/* Point 3b – Privacy restriction for Branded Content */}
+                  {privacyLevel === 'SELF_ONLY' && (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-xs text-gray-600">
+                        <strong>Privacy setting: Private (Only me)</strong>
+                        <br />
+                        {isBrandOrganic ? (
+                          <span className="text-red-500">Branded content visibility cannot be set to private. Please change visibility to continue.</span>
+                        ) : isBrandContent ? (
+                          <span>Your video will be labeled "Promotional content" but may not be visible to others due to private visibility.</span>
+                        ) : (
+                          <span>Your video will be posted privately and will not be visible to others.</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Point 2: Music Usage Confirmation consent (always shown) ── */}
+            <div className="pt-3 border-t border-gray-200">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  required={isTikTokSelected}
+                  className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                />
+                <span className="text-sm text-gray-600">
+                  By posting, you agree to TikTok's{' '}
+                  <a
+                    href="https://www.tiktok.com/legal/music-usage-confirmation"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Music Usage Confirmation
+                  </a>
+                  .
+                </span>
+              </label>
+
+              {/* Point 5d – Processing notice (different for Direct Post vs Send to Inbox) */}
+              <p className="text-xs text-gray-400 mt-2 ml-8">
+                {detectedMediaType !== 'image' && !directPost
+                  ? 'Your content will be sent to your TikTok inbox for review before publishing.'
+                  : 'Your content may take a few minutes to process and appear on your TikTok profile.'}
+              </p>
+            </div>
+
+            {/* ── Privacy Level ── */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Privacy Level <span className="text-red-500">*</span>
@@ -669,7 +795,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
               )}
             </div>
 
-            {/* Interaction Settings (disabled states from Creator Info API) */}
+            {/* ── Interaction Settings ── */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">Allow users to</label>
               <div className="space-y-2">
@@ -686,7 +812,6 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     {creatorInfo?.comment_disabled && <span className="text-xs text-gray-400 ml-1">(disabled by creator settings)</span>}
                   </span>
                 </label>
-                {/* Duet and Stitch only applicable to video posts */}
                 {detectedMediaType !== 'image' && (
                   <>
                     <label className={`flex items-center gap-3 ${creatorInfo?.duet_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
@@ -720,121 +845,43 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
               </div>
             </div>
 
-            {/* Disclose Video Content */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-gray-700">Disclose video content</label>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={discloseContent}
-                  onClick={() => {
-                    const next = !discloseContent
-                    setDiscloseContent(next)
-                    if (!next) {
-                      setIsBrandContent(false)
-                      setIsBrandOrganic(false)
-                    }
-                  }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    discloseContent ? 'bg-indigo-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    discloseContent ? 'translate-x-6' : 'translate-x-1'
-                  }`} />
-                </button>
-              </div>
-              <p className="text-xs text-gray-500">
-                Turn on to disclose that this video promotes goods or services in exchange for something of value. Your video could promote yourself, a third party, or both.
-              </p>
-
-              {discloseContent && (
-                <div className="space-y-3 pt-2">
-                  {/* Point 3 - Checkboxes first, then label notice */}
-
-                  {/* Your Brand */}
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isBrandContent}
-                      onChange={(e) => setIsBrandContent(e.target.checked)}
-                      className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
-                    />
-                    <div>
-                      <span className="text-sm text-gray-700 font-medium">Your brand</span>
-                      <p className="text-xs text-gray-500">You are promoting yourself or your own business. This video will be classified as Brand Organic.</p>
-                    </div>
-                  </label>
-
-                  {/* Branded Content */}
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isBrandOrganic}
-                      onChange={(e) => {
-                        setIsBrandOrganic(e.target.checked)
-                        if (e.target.checked && privacyLevel === 'SELF_ONLY') {
-                          setPrivacyLevel('')
-                        }
-                      }}
-                      className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
-                    />
-                    <div>
-                      <span className="text-sm text-gray-700 font-medium">Branded content</span>
-                      <p className="text-xs text-gray-500">You are promoting another brand or a third party. This video will be classified as Branded Content.</p>
-                    </div>
-                  </label>
-
-                  {/* Error if neither selected */}
-                  {!isBrandContent && !isBrandOrganic && (
-                    <p className="text-xs text-red-500">You need to indicate if your content promotes yourself, a third party, or both.</p>
-                  )}
-
-                  {/* Point 3a - Content label notice (shown after checkbox selection) */}
-                  {isBrandContent && !isBrandOrganic && (
-                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      <p className="text-xs text-amber-700">
-                        Your video will be labeled "Promotional content". This cannot be changed once your video is posted.
-                      </p>
-                    </div>
-                  )}
-
-                  {isBrandOrganic && (
-                    <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                      <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      <p className="text-xs text-amber-700">
-                        Your video will be labeled "Paid partnership". This cannot be changed once your video is posted.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Point 3b - Privacy Management */}
-                  {privacyLevel === 'SELF_ONLY' && (
-                    <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                      <p className="text-xs text-gray-600">
-                        <strong>Privacy setting: Private (Only me)</strong>
-                        <br />
-                        {isBrandOrganic ? (
-                          <span className="text-red-500">Branded content visibility cannot be set to private. Please change visibility to continue.</span>
-                        ) : isBrandContent ? (
-                          <span>Your video will be labeled "Promotional content" but may not be visible to others due to private visibility.</span>
-                        ) : (
-                          <span>Your video will be posted privately and will not be visible to others.</span>
-                        )}
-                      </p>
-                    </div>
-                  )}
+            {/* ── Direct Post vs Send to Inbox (video only) ── */}
+            {detectedMediaType !== 'image' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Publish Mode</label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDirectPost(true)}
+                    className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      directPost
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    Direct Post
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirectPost(false)}
+                    className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      !directPost
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    Send to Inbox
+                  </button>
                 </div>
-              )}
-            </div>
+                <p className="text-xs text-gray-500">
+                  {directPost
+                    ? 'Video will be published automatically to your TikTok account.'
+                    : 'Video will be sent to your TikTok inbox for manual review before publishing.'}
+                </p>
+              </div>
+            )}
 
-            {/* Auto-Add Music (for photo posts) */}
+            {/* ── Auto-Add Music (photo posts only) ── */}
             {detectedMediaType === 'image' && (
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700">Music Settings</label>
@@ -853,51 +900,6 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
               </div>
             )}
 
-            {/* Point 2 & 4 - Consent Statement */}
-            <div className="pt-3 border-t border-gray-200">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  required={isTikTokSelected}
-                  className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
-                />
-                <span className="text-sm text-gray-600">
-                  By posting, you agree to TikTok's{' '}
-                  {/* Point 4 - Show Branded Content Policy only when Branded Content checkbox is selected */}
-                  {isBrandOrganic ? (
-                    <>
-                      <a
-                        href="https://www.tiktok.com/legal/page/global/bc-policy/en"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:underline"
-                      >
-                        Branded Content Policy
-                      </a>
-                      {' '}and{' '}
-                    </>
-                  ) : null}
-                  <a
-                    href="https://www.tiktok.com/legal/music-usage-confirmation"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:underline"
-                  >
-                    Music Usage Confirmation
-                  </a>
-                  .
-                </span>
-              </label>
-
-              {/* Point 5d - Processing notice - different for Direct Post vs Send to Inbox */}
-              <p className="text-xs text-gray-400 mt-2 ml-8">
-                {detectedMediaType !== 'image' && !directPost
-                  ? 'Your content will be sent to your TikTok inbox for review before publishing.'
-                  : 'Your content may take a few minutes to process and appear on your TikTok profile.'}
-              </p>
-            </div>
             </div>
             )}
           </div>
