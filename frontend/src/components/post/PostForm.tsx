@@ -80,8 +80,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [allowStitch, setAllowStitch] = useState(false)
   const [tiktokSettingsOpen, setTiktokSettingsOpen] = useState(true)
   const [discloseContent, setDiscloseContent] = useState(false)
-  const [isBrandContent, setIsBrandContent] = useState(false)
-  const [isBrandOrganic, setIsBrandOrganic] = useState(false)
+  const [isYourBrand, setIsYourBrand] = useState(false)       // "Your Brand" → TikTok: is_brand_organic
+  const [isBrandedContent, setIsBrandedContent] = useState(false) // "Branded Content" → TikTok: is_brand_content
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [autoAddMusic, setAutoAddMusic] = useState(false)
   const [directPost, setDirectPost] = useState(true)
@@ -245,12 +245,12 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
         return
       }
       // Disclosure toggle on but no option selected
-      if (discloseContent && !isBrandContent && !isBrandOrganic) {
+      if (discloseContent && !isYourBrand && !isBrandedContent) {
         setError('You need to indicate if your content promotes yourself, a third party, or both')
         return
       }
       // Branded content cannot be private
-      if (isBrandOrganic && privacyLevel === 'SELF_ONLY') {
+      if (isBrandedContent && privacyLevel === 'SELF_ONLY') {
         setError('Branded content visibility cannot be set to private')
         return
       }
@@ -272,8 +272,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
             allow_comment: allowComment,
             allow_duet: allowDuet,
             allow_stitch: allowStitch,
-            is_brand_content: isBrandContent,
-            is_brand_organic: isBrandOrganic,
+            is_brand_organic: isYourBrand,
+            is_brand_content: isBrandedContent,
             auto_add_music: autoAddMusic,
             direct_post: directPost,
           }
@@ -296,8 +296,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       setAllowDuet(false)
       setAllowStitch(false)
       setDiscloseContent(false)
-      setIsBrandContent(false)
-      setIsBrandOrganic(false)
+      setIsYourBrand(false)
+      setIsBrandedContent(false)
       setAgreedToTerms(false)
       setAutoAddMusic(false)
       setDirectPost(true)
@@ -623,10 +623,10 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     <option
                       key={option.value}
                       value={option.value}
-                      disabled={option.value === 'SELF_ONLY' && isBrandOrganic}
+                      disabled={option.value === 'SELF_ONLY' && isBrandedContent}
                     >
                       {option.label}{option.description ? ` - ${option.description}` : ''}
-                      {option.value === 'SELF_ONLY' && isBrandOrganic ? ' (unavailable for branded content)' : ''}
+                      {option.value === 'SELF_ONLY' && 
                     </option>
                   ))}
                 </select>
@@ -750,8 +750,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     const next = !discloseContent
                     setDiscloseContent(next)
                     if (!next) {
-                      setIsBrandContent(false)
-                      setIsBrandOrganic(false)
+                      setIsYourBrand(false)
+                      setIsBrandedContent(false)
                     }
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -775,8 +775,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={isBrandContent}
-                      onChange={(e) => setIsBrandContent(e.target.checked)}
+                      checked={isYourBrand}
+                      onChange={(e) => setIsYourBrand(e.target.checked)}
                       className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
                     />
                     <div>
@@ -789,9 +789,9 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={isBrandOrganic}
+                      checked={isBrandedContent}
                       onChange={(e) => {
-                        setIsBrandOrganic(e.target.checked)
+                        setIsBrandedContent(e.target.checked)
                         if (e.target.checked && privacyLevel === 'SELF_ONLY') {
                           setPrivacyLevel('')
                         }
@@ -805,12 +805,12 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                   </label>
 
                   {/* Error if neither selected */}
-                  {!isBrandContent && !isBrandOrganic && (
+                  {!isYourBrand && !isBrandedContent && (
                     <p className="text-xs text-red-500">You need to indicate if your content promotes yourself, a third party, or both.</p>
                   )}
 
                   {/* Content label notice — "Your brand" only */}
-                  {isBrandContent && !isBrandOrganic && (
+                  {isYourBrand && !isBrandedContent && (
                     <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
                       <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -822,7 +822,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                   )}
 
                   {/* Content label notice — "Branded content" selected (alone or with "Your brand") */}
-                  {isBrandOrganic && (
+                  {isBrandedContent && (
                     <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
                       <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -834,7 +834,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                   )}
 
                   {/* Privacy restriction notice for Branded Content */}
-                  {privacyLevel === 'SELF_ONLY' && isBrandOrganic && (
+                  {privacyLevel === 'SELF_ONLY' && isBrandedContent && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                       <p className="text-xs text-red-600">
                         Branded content visibility cannot be set to private. Please select a different privacy level.
@@ -856,7 +856,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                   className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
                 />
                 <span className="text-sm text-gray-600">
-                  {isBrandOrganic ? (
+                  {isBrandedContent ? (
                     <>
                       By posting, you agree to TikTok's{' '}
                       <a
@@ -918,10 +918,10 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting || activePlatforms.length === 0 || (isTikTokSelected && discloseContent && !isBrandContent && !isBrandOrganic)}
-          title={isTikTokSelected && discloseContent && !isBrandContent && !isBrandOrganic ? 'You need to indicate if your content promotes yourself, a third party, or both' : undefined}
+          disabled={isSubmitting || activePlatforms.length === 0 || (isTikTokSelected && discloseContent && !isYourBrand && !isBrandedContent)}
+          title={isTikTokSelected && discloseContent && !isYourBrand && !isBrandedContent ? 'You need to indicate if your content promotes yourself, a third party, or both' : undefined}
           className={`w-full py-4 rounded-xl font-semibold text-white transition-all ${
-            isSubmitting || activePlatforms.length === 0 || (isTikTokSelected && discloseContent && !isBrandContent && !isBrandOrganic)
+            isSubmitting || activePlatforms.length === 0 || (isTikTokSelected && discloseContent && !isYourBrand && !isBrandedContent)
               ? 'bg-gray-300 cursor-not-allowed'
               : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-lg hover:scale-[1.02]'
           }`}
