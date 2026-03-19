@@ -626,7 +626,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                       disabled={option.value === 'SELF_ONLY' && isBrandedContent}
                     >
                       {option.label}{option.description ? ` - ${option.description}` : ''}
-                      {option.value === 'SELF_ONLY' && 
+                      {option.value === 'SELF_ONLY' && isBrandedContent ? ' (unavailable for branded content)' : ''}
                     </option>
                   ))}
                 </select>
