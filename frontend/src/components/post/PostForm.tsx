@@ -735,41 +735,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
               </div>
             </div>
 
-            {/* ── Direct Post vs Send to Inbox (video only) ── */}
-            {detectedMediaType !== 'image' && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Publish Mode</label>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDirectPost(true)}
-                    className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                      directPost
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    Direct Post
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDirectPost(false)}
-                    className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                      !directPost
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    Send to Inbox
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500">
-                  {directPost
-                    ? 'Video will be published automatically to your TikTok account.'
-                    : 'Video will be sent to your TikTok inbox for manual review before publishing.'}
-                </p>
-              </div>
-            )}
+            {/* ── Direct Post vs Send to Inbox (video only) ── hidden for now */}
 
             {/* ── Auto-Add Music (photo posts only) ── */}
             {detectedMediaType === 'image' && (
