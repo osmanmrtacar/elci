@@ -85,6 +85,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [autoAddMusic, setAutoAddMusic] = useState(false)
   const [directPost, setDirectPost] = useState(true)
+  const [brandedContentPrivacySwitched, setBrandedContentPrivacySwitched] = useState(false)
 
   // TikTok Creator Info state
   const [creatorInfo, setCreatorInfo] = useState<TikTokCreatorInfo | null>(null)
@@ -467,24 +468,6 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
           </div>
         )}
 
-        {/* Title (for TikTok) */}
-        <div className="space-y-2">
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-            Title {isTikTokSelected && <span className="text-gray-400">(for TikTok)</span>}
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Give your video a title..."
-            disabled={isSubmitting}
-            maxLength={150}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors"
-          />
-          <p className="text-xs text-gray-400">{title.length} / 150 characters</p>
-        </div>
-
         {/* Caption */}
         <div className="space-y-2">
           <label htmlFor="caption" className="block text-sm font-medium text-gray-700">
@@ -593,6 +576,24 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
             {tiktokSettingsOpen && (
             <div className="px-5 pb-5 space-y-5 border-t border-gray-200 pt-5">
 
+            {/* ── Title ── */}
+            <div className="space-y-2">
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                Title (for TikTok)
+              </label>
+              <input
+                type="text"
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Give your video a title..."
+                disabled={isSubmitting}
+                maxLength={150}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors"
+              />
+              <p className="text-xs text-gray-400">{title.length} / 150 characters</p>
+            </div>
+
             {/* ── Point 2b: Privacy Level ── */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -614,7 +615,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
               ) : (
                 <select
                   value={privacyLevel}
-                  onChange={(e) => setPrivacyLevel(e.target.value as TikTokPrivacyLevel | '')}
+                  onChange={(e) => { setPrivacyLevel(e.target.value as TikTokPrivacyLevel | ''); setBrandedContentPrivacySwitched(false) }}
                   required={isTikTokSelected}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors bg-white"
                 >
@@ -793,7 +794,10 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                       onChange={(e) => {
                         setIsBrandedContent(e.target.checked)
                         if (e.target.checked && privacyLevel === 'SELF_ONLY') {
-                          setPrivacyLevel('')
+                          setPrivacyLevel('PUBLIC_TO_EVERYONE')
+                          setBrandedContentPrivacySwitched(true)
+                        } else {
+                          setBrandedContentPrivacySwitched(false)
                         }
                       }}
                       className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
@@ -833,11 +837,14 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     </div>
                   )}
 
-                  {/* Privacy restriction notice for Branded Content */}
-                  {privacyLevel === 'SELF_ONLY' && isBrandedContent && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-xs text-red-600">
-                        Branded content visibility cannot be set to private. Please select a different privacy level.
+                  {/* Auto-switch notice for Branded Content */}
+                  {brandedContentPrivacySwitched && isBrandedContent && (
+                    <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <svg className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs text-blue-700">
+                        Visibility was automatically switched to <strong>Public</strong> — branded content cannot be set to private.
                       </p>
                     </div>
                   )}
