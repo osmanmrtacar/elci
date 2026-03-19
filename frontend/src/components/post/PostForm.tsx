@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { postService } from '../../services/postService'
 import { useAuth } from '../../context/AuthContext'
 import { Platform } from '../../types/user'
@@ -86,6 +86,8 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
   const [autoAddMusic, setAutoAddMusic] = useState(false)
   const [directPost, setDirectPost] = useState(true)
   const [brandedContentPrivacySwitched, setBrandedContentPrivacySwitched] = useState(false)
+  const [privacyDropdownOpen, setPrivacyDropdownOpen] = useState(false)
+  const privacyDropdownRef = useRef<HTMLDivElement>(null)
 
   // TikTok Creator Info state
   const [creatorInfo, setCreatorInfo] = useState<TikTokCreatorInfo | null>(null)
@@ -125,6 +127,17 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
       setCreatorInfoError(null)
     }
   }, [isTikTokSelected, fetchCreatorInfo])
+
+  // Close privacy dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (privacyDropdownRef.current && !privacyDropdownRef.current.contains(e.target as Node)) {
+        setPrivacyDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   // Build dynamic privacy options from creator info
   const privacyOptions = useMemo(() => {
@@ -613,24 +626,62 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                   <button type="button" onClick={fetchCreatorInfo} className="ml-2 underline">Retry</button>
                 </div>
               ) : (
-                <select
-                  value={privacyLevel}
-                  onChange={(e) => { setPrivacyLevel(e.target.value as TikTokPrivacyLevel | ''); setBrandedContentPrivacySwitched(false) }}
-                  required={isTikTokSelected}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-0 transition-colors bg-white"
-                >
-                  <option value="">-- Select privacy level --</option>
-                  {privacyOptions.map(option => (
-                    <option
-                      key={option.value}
-                      value={option.value}
-                      disabled={option.value === 'SELF_ONLY' && isBrandedContent}
-                    >
-                      {option.label}{option.description ? ` - ${option.description}` : ''}
-                      {option.value === 'SELF_ONLY' && isBrandedContent ? ' (unavailable for branded content)' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div ref={privacyDropdownRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setPrivacyDropdownOpen(prev => !prev)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors bg-white text-left flex items-center justify-between"
+                  >
+                    <span className={privacyLevel ? 'text-gray-900' : 'text-gray-400'}>
+                      {privacyLevel
+                        ? `${PRIVACY_LABEL_MAP[privacyLevel]?.label ?? privacyLevel}${PRIVACY_LABEL_MAP[privacyLevel]?.description ? ` - ${PRIVACY_LABEL_MAP[privacyLevel].description}` : ''}`
+                        : '-- Select privacy level --'}
+                    </span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${privacyDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {privacyDropdownOpen && (
+                    <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                      {privacyOptions.map(option => {
+                        const isDisabled = option.value === 'SELF_ONLY' && isBrandedContent
+                        return (
+                          <li key={option.value} className="relative group">
+                            <button
+                              type="button"
+                              disabled={isDisabled}
+                              onClick={() => {
+                                if (!isDisabled) {
+                                  setPrivacyLevel(option.value)
+                                  setBrandedContentPrivacySwitched(false)
+                                  setPrivacyDropdownOpen(false)
+                                }
+                              }}
+                              className={`w-full px-4 py-3 text-left transition-colors ${
+                                isDisabled
+                                  ? 'text-gray-300 cursor-not-allowed bg-gray-50'
+                                  : option.value === privacyLevel
+                                    ? 'bg-indigo-50 text-indigo-700'
+                                    : 'text-gray-900 hover:bg-gray-50'
+                              }`}
+                            >
+                              <span className="font-medium text-sm">{option.label}</span>
+                              {option.description && <span className="text-xs text-gray-400 ml-1">- {option.description}</span>}
+                            </button>
+                            {isDisabled && (
+                              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-30 hidden group-hover:block w-56">
+                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg">
+                                  Branded content visibility cannot be set to private.
+                                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900" />
+                                </div>
+                              </div>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
 
@@ -794,7 +845,13 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                       onChange={(e) => {
                         setIsBrandedContent(e.target.checked)
                         if (e.target.checked && privacyLevel === 'SELF_ONLY') {
-                          setPrivacyLevel('PUBLIC_TO_EVERYONE')
+                          const options = creatorInfo?.privacy_level_options ?? []
+                          const fallback = options.includes('PUBLIC_TO_EVERYONE')
+                            ? 'PUBLIC_TO_EVERYONE'
+                            : options.includes('FOLLOWER_OF_CREATOR')
+                              ? 'FOLLOWER_OF_CREATOR'
+                              : 'MUTUAL_FOLLOW_FRIENDS'
+                          setPrivacyLevel(fallback as TikTokPrivacyLevel)
                           setBrandedContentPrivacySwitched(true)
                         } else {
                           setBrandedContentPrivacySwitched(false)
@@ -844,7 +901,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
                       <p className="text-xs text-blue-700">
-                        Visibility was automatically switched to <strong>Public</strong> — branded content cannot be set to private.
+                        Visibility was automatically switched to <strong>{PRIVACY_LABEL_MAP[privacyLevel]?.label ?? privacyLevel}</strong> — branded content cannot be set to private.
                       </p>
                     </div>
                   )}
