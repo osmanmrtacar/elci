@@ -642,7 +642,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                     </svg>
                   </button>
                   {privacyDropdownOpen && (
-                    <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                    <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg">
                       {privacyOptions.map(option => {
                         const isDisabled = option.value === 'SELF_ONLY' && isBrandedContent
                         return (
@@ -657,7 +657,7 @@ const PostForm = ({ onPostCreated }: PostFormProps) => {
                                   setPrivacyDropdownOpen(false)
                                 }
                               }}
-                              className={`w-full px-4 py-3 text-left transition-colors ${
+                              className={`w-full px-4 py-3 text-left transition-colors first:rounded-t-xl last:rounded-b-xl ${
                                 isDisabled
                                   ? 'text-gray-300 cursor-not-allowed bg-gray-50'
                                   : option.value === privacyLevel
