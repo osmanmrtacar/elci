@@ -1,169 +1,68 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/osmanmertacar/sosyal/backend/internal/api/handlers"
-	"github.com/osmanmertacar/sosyal/backend/internal/api/middleware"
-	"github.com/osmanmertacar/sosyal/backend/internal/config"
-	"github.com/osmanmertacar/sosyal/backend/internal/database"
-	"github.com/osmanmertacar/sosyal/backend/internal/database/models"
-	"github.com/osmanmertacar/sosyal/backend/internal/services"
-	"github.com/osmanmertacar/sosyal/backend/internal/services/platform"
+	"log/slog"
+	"net/http"
+
+	"github.com/osmanmertacar/elci/backend/internal/api/handlers"
+	"github.com/osmanmertacar/elci/backend/internal/api/middleware"
+	"github.com/osmanmertacar/elci/backend/internal/auth"
+	"github.com/osmanmertacar/elci/backend/internal/repository"
+	"github.com/osmanmertacar/elci/backend/internal/service"
 )
 
-// SetupRouter sets up the HTTP router with all routes
-func SetupRouter(cfg *config.Config, db *database.DB) *gin.Engine {
-	// Set Gin mode based on environment
-	if cfg.IsProduction() {
-		gin.SetMode(gin.ReleaseMode)
-	}
+type Deps struct {
+	Tokens             auth.TokenIssuer
+	Connections        *service.ConnectionService
+	ConnectionRepo     repository.ConnectionRepository
+	Media              *service.MediaService
+	MediaRepo          repository.MediaRepository
+	Posts              *service.PostService
+	PostRepo           repository.PostRepository
+	PostTargetRepo     repository.PostTargetRepository
+	FrontendURL        string
+	CORSAllowedOrigins []string
+	Logger             *slog.Logger
+}
 
-	router := gin.Default()
+func NewRouter(deps Deps) http.Handler {
+	mux := http.NewServeMux()
 
-	// Trust no proxies - safest option behind Cloudflare which handles forwarded headers
-	router.SetTrustedProxies(nil)
-
-	// Apply security headers and CORS middleware
-	router.Use(middleware.SecurityHeaders())
-	router.Use(middleware.CORS(cfg.CORS.AllowedOrigins))
-
-	// Health check endpoint (no auth required)
-	router.GET("/health", func(c *gin.Context) {
-		if err := db.Health(); err != nil {
-			c.JSON(500, gin.H{"status": "unhealthy", "error": err.Error()})
-			return
-		}
-		c.JSON(200, gin.H{"status": "healthy"})
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Initialize repositories
-	userRepo := models.NewUserRepository(db.DB)
-	tokenRepo := models.NewTokenRepository(db.DB)
-	postRepo := models.NewPostRepository(db.DB)
-	platformConnectionRepo := models.NewPlatformConnectionRepository(db.DB)
-	oauthSessionRepo := models.NewOAuthSessionRepository(db.DB)
+	oauthHandler := handlers.NewOAuthHandler(deps.Connections, deps.FrontendURL, deps.Logger)
+	meHandler := handlers.NewMeHandler(deps.ConnectionRepo, deps.Connections)
 
-	// Initialize platform registry
-	platformRegistry := platform.NewPlatformRegistry()
+	optionalAuth := middleware.OptionalAuth(deps.Tokens)
+	requireAuth := middleware.RequireAuth(deps.Tokens)
 
-	// Initialize TikTok platform services
-	tiktokService := services.NewTikTokService(cfg)
+	mux.Handle("GET /api/v1/auth/{platform}/login", optionalAuth(http.HandlerFunc(oauthHandler.Login)))
+	mux.HandleFunc("GET /api/v1/auth/{platform}/callback", oauthHandler.Callback)
 
-	// Register TikTok platform
-	tiktokPlatform := platform.NewTikTokPlatformService(cfg, tiktokService)
-	platformRegistry.Register(tiktokPlatform)
+	mux.Handle("GET /api/v1/me", requireAuth(http.HandlerFunc(meHandler.Me)))
+	mux.Handle("DELETE /api/v1/connections/{platform}", requireAuth(http.HandlerFunc(meHandler.Disconnect)))
+	mux.Handle("GET /api/v1/connections/{platform}/info", requireAuth(http.HandlerFunc(meHandler.ConnectionInfo)))
 
-	// Initialize X platform services (if configured)
-	if cfg.X.ClientID != "" && cfg.X.ClientSecret != "" {
-		xPlatform := platform.NewXPlatformService(
-			cfg.X.ClientID,
-			cfg.X.ClientSecret,
-			cfg.X.RedirectURI,
-		)
-		platformRegistry.Register(xPlatform)
+	if deps.Media != nil {
+		mediaHandler := handlers.NewMediaHandler(deps.Media, deps.MediaRepo)
+		mux.Handle("POST /api/v1/media/presign", requireAuth(http.HandlerFunc(mediaHandler.Presign)))
+		mux.Handle("POST /api/v1/media/confirm", requireAuth(http.HandlerFunc(mediaHandler.Confirm)))
 	}
 
-	// Initialize Instagram platform services (if configured)
-	if cfg.Instagram.AppID != "" && cfg.Instagram.AppSecret != "" {
-		instagramPlatform := platform.NewInstagramPlatformService(
-			cfg.Instagram.AppID,
-			cfg.Instagram.AppSecret,
-			cfg.Instagram.RedirectURI,
-		)
-		platformRegistry.Register(instagramPlatform)
-	}
+	postHandler := handlers.NewPostHandler(deps.PostRepo, deps.PostTargetRepo, deps.Posts)
+	mux.Handle("POST /api/v1/posts", requireAuth(http.HandlerFunc(postHandler.Create)))
+	mux.Handle("GET /api/v1/posts", requireAuth(http.HandlerFunc(postHandler.List)))
+	mux.Handle("GET /api/v1/posts/{id}", requireAuth(http.HandlerFunc(postHandler.Get)))
+	mux.Handle("POST /api/v1/posts/{id}/schedule", requireAuth(http.HandlerFunc(postHandler.Schedule)))
+	mux.Handle("POST /api/v1/posts/{id}/publish", requireAuth(http.HandlerFunc(postHandler.Publish)))
+	mux.Handle("DELETE /api/v1/posts/{id}", requireAuth(http.HandlerFunc(postHandler.Delete)))
 
-	// (postService kept for potential backward compatibility if needed)
+	var handler http.Handler = mux
+	handler = middleware.CORS(deps.CORSAllowedOrigins)(handler)
+	handler = middleware.SecurityHeaders(handler)
 
-	// Initialize multi-platform post service
-	multiPlatformPostService := services.NewMultiPlatformPostService(
-		postRepo,
-		tokenRepo,
-		platformConnectionRepo,
-		platformRegistry,
-	)
-
-	// Initialize handlers
-	multiPlatformAuthHandler := handlers.NewMultiPlatformAuthHandler(
-		cfg,
-		platformRegistry,
-		userRepo,
-		tokenRepo,
-		platformConnectionRepo,
-		oauthSessionRepo,
-	)
-	multiPlatformPostHandler := handlers.NewMultiPlatformPostHandler(
-		multiPlatformPostService,
-		platformConnectionRepo,
-	)
-
-	// API v1 routes
-	v1 := router.Group("/api/v1")
-	{
-		// Auth routes (no auth middleware required, but will use it if present)
-		auth := v1.Group("/auth")
-		auth.Use(middleware.OptionalAuthMiddleware(cfg.JWT.Secret))
-		{
-			// Multi-platform auth routes
-			auth.GET("/tiktok/login", multiPlatformAuthHandler.TikTokLogin)
-			auth.GET("/tiktok/callback", multiPlatformAuthHandler.TikTokCallback)
-			auth.GET("/x/login", multiPlatformAuthHandler.XLogin)
-			auth.GET("/x/callback", multiPlatformAuthHandler.XCallback)
-			auth.GET("/instagram/login", multiPlatformAuthHandler.InstagramLogin)
-			auth.GET("/instagram/callback", multiPlatformAuthHandler.InstagramCallback)
-			auth.POST("/logout", multiPlatformAuthHandler.Logout)
-		}
-
-		// Protected routes (require auth)
-		protected := v1.Group("")
-		protected.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
-		{
-			// User routes
-			protected.GET("/auth/me", multiPlatformAuthHandler.GetCurrentUser)
-			protected.GET("/auth/platforms", multiPlatformAuthHandler.GetConnectedPlatforms)
-			protected.DELETE("/auth/platforms/:platform", multiPlatformAuthHandler.DisconnectPlatform)
-
-			// TikTok-specific routes
-			protected.GET("/tiktok/creator-info", func(c *gin.Context) {
-				userID, err := middleware.GetUserID(c)
-				if err != nil {
-					c.JSON(401, gin.H{"error": "Not authenticated"})
-					return
-				}
-
-				token, err := tokenRepo.GetByUserIDAndPlatform(userID, models.PlatformTikTok)
-				if err != nil {
-					c.JSON(404, gin.H{"error": "TikTok account not connected"})
-					return
-				}
-
-				creatorInfo, err := tiktokService.GetCreatorInfo(token.AccessToken)
-				if err != nil {
-					c.JSON(500, gin.H{"error": "Failed to fetch creator info from TikTok"})
-					return
-				}
-
-				c.JSON(200, gin.H{
-					"creator_info": gin.H{
-						"privacy_level_options":       creatorInfo.PrivacyLevelOptions,
-						"max_video_post_duration_sec": creatorInfo.MaxVideoPostDurationSec,
-						"stitch_disabled":             creatorInfo.StitchDisabled,
-						"comment_disabled":            creatorInfo.CommentDisabled,
-						"duet_disabled":               creatorInfo.DuetDisabled,
-					},
-				})
-			})
-
-			// Post routes - using multi-platform handler
-			posts := protected.Group("/posts")
-			{
-				posts.POST("", multiPlatformPostHandler.CreatePost)
-				posts.GET("", multiPlatformPostHandler.GetPosts)
-				posts.GET("/:id", multiPlatformPostHandler.GetPost)
-				posts.GET("/:id/status", multiPlatformPostHandler.GetPostStatus)
-			}
-		}
-	}
-
-	return router
+	return handler
 }

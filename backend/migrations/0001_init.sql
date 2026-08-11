@@ -1,0 +1,33 @@
+CREATE TABLE users (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE platform_connections (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+	platform TEXT NOT NULL,
+	platform_user_id TEXT NOT NULL,
+	username TEXT NOT NULL DEFAULT '',
+	display_name TEXT NOT NULL DEFAULT '',
+	avatar_url TEXT NOT NULL DEFAULT '',
+	access_token TEXT NOT NULL,
+	refresh_token TEXT NOT NULL DEFAULT '',
+	token_expires_at DATETIME,
+	scope TEXT NOT NULL DEFAULT '',
+	is_active INTEGER NOT NULL DEFAULT 1,
+	connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	last_used_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE (user_id, platform),
+	UNIQUE (platform, platform_user_id)
+);
+
+CREATE TABLE oauth_sessions (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	state TEXT NOT NULL UNIQUE,
+	code_verifier TEXT NOT NULL DEFAULT '',
+	platform TEXT NOT NULL,
+	user_id INTEGER REFERENCES users (id) ON DELETE CASCADE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	expires_at DATETIME NOT NULL
+);

@@ -1,147 +1,70 @@
 package middleware
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/osmanmertacar/elci/backend/internal/auth"
 )
 
-// AuthMiddleware validates JWT tokens
-func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Get token from Authorization header
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
-			c.Abort()
-			return
-		}
+type contextKey int
 
-		// Extract token from "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
-			c.Abort()
-			return
-		}
+const userIDKey contextKey = 0
 
-		tokenString := parts[1]
-
-		// Parse and validate token
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Validate signing method
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+// RequireAuth rejects the request unless it carries a valid bearer JWT.
+func RequireAuth(tokens auth.TokenIssuer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userID, ok := parseBearer(r, tokens)
+			if !ok {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
 			}
-			return []byte(jwtSecret), nil
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDKey, userID)))
 		})
-
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
-
-		if !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token is invalid or expired"})
-			c.Abort()
-			return
-		}
-
-		// Extract claims
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
-			c.Abort()
-			return
-		}
-
-		// Extract user ID from claims
-		userIDFloat, ok := claims["user_id"].(float64)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID in token"})
-			c.Abort()
-			return
-		}
-
-		userID := int64(userIDFloat)
-
-		// Set user ID in context for handlers to use
-		c.Set("user_id", userID)
-
-		c.Next()
 	}
 }
 
-// OptionalAuthMiddleware attempts to validate JWT tokens but doesn't block request if missing/invalid
-func OptionalAuthMiddleware(jwtSecret string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Get token from Authorization header
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.Next()
-			return
-		}
-
-		// Extract token from "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.Next()
-			return
-		}
-
-		tokenString := parts[1]
-
-		// Parse and validate token
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Validate signing method
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+// OptionalAuth attaches the user id if a valid bearer JWT is present, but
+// never rejects the request. Used by the "start OAuth" endpoint, which
+// works both for a fresh sign-in and for an already-logged-in user
+// connecting an additional platform. Since that endpoint is reached by a
+// top-level browser redirect (no custom headers possible), it also accepts
+// the token as a "?token=" query parameter as a fallback.
+func OptionalAuth(tokens auth.TokenIssuer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userID, ok := parseBearer(r, tokens)
+			if !ok {
+				if t := r.URL.Query().Get("token"); t != "" {
+					if uid, err := tokens.Parse(t); err == nil {
+						userID, ok = uid, true
+					}
+				}
 			}
-			return []byte(jwtSecret), nil
+			if ok {
+				r = r.WithContext(context.WithValue(r.Context(), userIDKey, userID))
+			}
+			next.ServeHTTP(w, r)
 		})
-
-		if err != nil || !token.Valid {
-			// Invalid token, just proceed without user_id
-			c.Next()
-			return
-		}
-
-		// Extract claims
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.Next()
-			return
-		}
-
-		// Extract user ID from claims
-		userIDFloat, ok := claims["user_id"].(float64)
-		if !ok {
-			c.Next()
-			return
-		}
-
-		// Set user ID in context
-		c.Set("user_id", int64(userIDFloat))
-
-		c.Next()
 	}
 }
 
-// GetUserID extracts the user ID from the Gin context
-func GetUserID(c *gin.Context) (int64, error) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		return 0, fmt.Errorf("user ID not found in context")
-	}
+func UserID(ctx context.Context) (int64, bool) {
+	v, ok := ctx.Value(userIDKey).(int64)
+	return v, ok
+}
 
-	id, ok := userID.(int64)
-	if !ok {
-		return 0, fmt.Errorf("invalid user ID type")
+func parseBearer(r *http.Request, tokens auth.TokenIssuer) (int64, bool) {
+	const prefix = "Bearer "
+	header := r.Header.Get("Authorization")
+	if !strings.HasPrefix(header, prefix) {
+		return 0, false
 	}
-
-	return id, nil
+	userID, err := tokens.Parse(strings.TrimPrefix(header, prefix))
+	if err != nil {
+		return 0, false
+	}
+	return userID, true
 }

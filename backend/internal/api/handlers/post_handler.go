@@ -1,238 +1,245 @@
 package handlers
 
 import (
-	"log"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/osmanmertacar/sosyal/backend/internal/api/middleware"
-	"github.com/osmanmertacar/sosyal/backend/internal/services"
+	"github.com/osmanmertacar/elci/backend/internal/api/middleware"
+	"github.com/osmanmertacar/elci/backend/internal/domain"
+	"github.com/osmanmertacar/elci/backend/internal/repository"
+	"github.com/osmanmertacar/elci/backend/internal/service"
 )
 
 type PostHandler struct {
-	postService *services.PostService
+	posts   repository.PostRepository
+	targets repository.PostTargetRepository
+	svc     *service.PostService
 }
 
-// NewPostHandler creates a new post handler
-func NewPostHandler(postService *services.PostService) *PostHandler {
-	return &PostHandler{
-		postService: postService,
-	}
+func NewPostHandler(posts repository.PostRepository, targets repository.PostTargetRepository, svc *service.PostService) *PostHandler {
+	return &PostHandler{posts: posts, targets: targets, svc: svc}
 }
 
-// CreatePostRequest represents the request to create a post
-type CreatePostRequest struct {
-	VideoURL string `json:"video_url" binding:"required"`
-	Caption  string `json:"caption"`
+type targetInputRequest struct {
+	Platform          string         `json:"platform"`
+	CaptionOverride   *string        `json:"captionOverride"`
+	MediaKindOverride *string        `json:"mediaKindOverride"`
+	MediaURLsOverride []string       `json:"mediaUrlsOverride"`
+	Settings          map[string]any `json:"settings"`
 }
 
-// CreatePost creates a new post
-func (h *PostHandler) CreatePost(c *gin.Context) {
-	// Get user ID from context
-	userID, err := middleware.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
-		return
-	}
-
-	// Parse request body
-	var req CreatePostRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
-		return
-	}
-
-	// Validate video URL
-	if req.VideoURL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "video_url is required"})
-		return
-	}
-
-	// Create post
-	post, err := h.postService.CreatePost(userID, req.VideoURL, req.Caption)
-	if err != nil {
-		log.Printf("Failed to create post for user %d: %v", userID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create post"})
-		return
-	}
-
-	log.Printf("Post %d created for user %d", post.ID, userID)
-
-	// Return post
-	c.JSON(http.StatusCreated, gin.H{
-		"post": gin.H{
-			"id":         post.ID,
-			"video_url":  post.VideoURL,
-			"caption":    post.Caption,
-			"status":     post.Status,
-			"created_at": post.CreatedAt,
-		},
-		"message": "Post created and is being processed",
-	})
+type createPostRequest struct {
+	DefaultCaption   string               `json:"defaultCaption"`
+	DefaultMediaKind *string              `json:"defaultMediaKind"`
+	DefaultMediaURLs []string             `json:"defaultMediaUrls"`
+	Targets          []targetInputRequest `json:"targets"`
 }
 
-// GetPosts retrieves all posts for the authenticated user
-func (h *PostHandler) GetPosts(c *gin.Context) {
-	// Get user ID from context
-	userID, err := middleware.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	// Get pagination parameters
-	limit := 20
-	offset := 0
-
-	if limitStr := c.Query("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
-			limit = l
-		}
-	}
-
-	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		}
-	}
-
-	// Get posts
-	posts, err := h.postService.GetUserPosts(userID, limit, offset)
-	if err != nil {
-		log.Printf("Failed to get posts for user %d: %v", userID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve posts"})
+	var req createPostRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	// Format response
-	postList := make([]gin.H, 0, len(posts))
-	for _, post := range posts {
-		postData := gin.H{
-			"id":         post.ID,
-			"video_url":  post.VideoURL,
-			"caption":    post.Caption,
-			"status":     post.Status,
-			"created_at": post.CreatedAt,
-		}
-
-		if post.TikTokPostID != "" {
-			postData["tiktok_post_id"] = post.TikTokPostID
-			postData["tiktok_url"] = "https://www.tiktok.com/@user/video/" + post.TikTokPostID
-		}
-
-		if post.PublishedAt != nil {
-			postData["published_at"] = post.PublishedAt
-		}
-
-		if post.ErrorMessage != "" {
-			postData["error_message"] = post.ErrorMessage
-		}
-
-		postList = append(postList, postData)
+	input := service.CreatePostInput{
+		DefaultCaption:   req.DefaultCaption,
+		DefaultMediaKind: parseMediaKind(req.DefaultMediaKind),
+		DefaultMediaURLs: req.DefaultMediaURLs,
+	}
+	for _, t := range req.Targets {
+		input.Targets = append(input.Targets, service.TargetInput{
+			Platform:          domain.Platform(t.Platform),
+			CaptionOverride:   t.CaptionOverride,
+			MediaKindOverride: parseMediaKind(t.MediaKindOverride),
+			MediaURLsOverride: t.MediaURLsOverride,
+			Settings:          t.Settings,
+		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"posts":  postList,
-		"count":  len(postList),
-		"limit":  limit,
-		"offset": offset,
-	})
+	post, targets, err := h.svc.CreateDraft(r.Context(), userID, input)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, postResponse(post, targets))
 }
 
-// GetPost retrieves a specific post by ID
-func (h *PostHandler) GetPost(c *gin.Context) {
-	// Get user ID from context
-	userID, err := middleware.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+func (h *PostHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	// Get post ID from URL
-	postIDStr := c.Param("id")
-	postID, err := strconv.ParseInt(postIDStr, 10, 64)
+	posts, err := h.posts.ListByUser(r.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid post ID"})
+		writeError(w, http.StatusInternalServerError, "could not list posts")
 		return
 	}
 
-	// Get post
-	post, err := h.postService.GetPostByID(postID, userID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
-		return
+	out := make([]map[string]any, 0, len(posts))
+	for _, p := range posts {
+		targets, err := h.targets.ListByPost(r.Context(), p.ID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not load post targets")
+			return
+		}
+		out = append(out, postResponse(p, targets))
 	}
-
-	// Format response
-	postData := gin.H{
-		"id":         post.ID,
-		"video_url":  post.VideoURL,
-		"caption":    post.Caption,
-		"status":     post.Status,
-		"created_at": post.CreatedAt,
-	}
-
-	if post.TikTokPostID != "" {
-		postData["tiktok_post_id"] = post.TikTokPostID
-		postData["tiktok_url"] = "https://www.tiktok.com/@user/video/" + post.TikTokPostID
-	}
-
-	if post.PublishedAt != nil {
-		postData["published_at"] = post.PublishedAt
-	}
-
-	if post.ErrorMessage != "" {
-		postData["error_message"] = post.ErrorMessage
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"post": postData,
-	})
+	writeJSON(w, http.StatusOK, out)
 }
 
-// GetPostStatus retrieves the status of a specific post
-func (h *PostHandler) GetPostStatus(c *gin.Context) {
-	// Get user ID from context
-	userID, err := middleware.GetUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+func (h *PostHandler) Get(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	// Get post ID from URL
-	postIDStr := c.Param("id")
-	postID, err := strconv.ParseInt(postIDStr, 10, 64)
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid post ID"})
+		writeError(w, http.StatusBadRequest, "invalid post id")
 		return
 	}
 
-	// Get post status
-	post, err := h.postService.GetPostStatus(postID, userID)
+	post, err := h.posts.Get(r.Context(), userID, id)
+	if errors.Is(err, repository.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "post not found")
+		return
+	}
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
+		writeError(w, http.StatusInternalServerError, "could not load post")
+		return
+	}
+	targets, err := h.targets.ListByPost(r.Context(), post.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load post targets")
+		return
+	}
+	writeJSON(w, http.StatusOK, postResponse(post, targets))
+}
+
+type scheduleRequest struct {
+	ScheduledAt time.Time `json:"scheduledAt"`
+}
+
+func (h *PostHandler) Schedule(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid post id")
 		return
 	}
 
-	// Return just the status information
-	response := gin.H{
-		"id":     post.ID,
-		"status": post.Status,
+	var req scheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ScheduledAt.IsZero() {
+		writeError(w, http.StatusBadRequest, "scheduledAt is required")
+		return
 	}
 
-	if post.ErrorMessage != "" {
-		response["error_message"] = post.ErrorMessage
+	if err := h.svc.Schedule(r.Context(), userID, id, req.ScheduledAt); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *PostHandler) Publish(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid post id")
+		return
 	}
 
-	if post.TikTokPostID != "" {
-		response["tiktok_post_id"] = post.TikTokPostID
-		response["tiktok_url"] = "https://www.tiktok.com/@user/video/" + post.TikTokPostID
+	if err := h.svc.PublishNow(r.Context(), userID, id); err != nil {
+		writeServiceError(w, err)
+		return
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
 
-	if post.PublishedAt != nil {
-		response["published_at"] = post.PublishedAt
+func (h *PostHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
 	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid post id")
+		return
+	}
+	if err := h.posts.Delete(r.Context(), userID, id); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not delete post")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
 
-	c.JSON(http.StatusOK, response)
+func writeServiceError(w http.ResponseWriter, err error) {
+	var vf *service.ValidationFailure
+	if errors.As(err, &vf) {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"errors": vf.ByTarget})
+		return
+	}
+	if errors.Is(err, repository.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "post not found")
+		return
+	}
+	writeError(w, http.StatusInternalServerError, err.Error())
+}
+
+func parseMediaKind(s *string) *domain.MediaKind {
+	if s == nil {
+		return nil
+	}
+	k := domain.MediaKind(*s)
+	return &k
+}
+
+func postResponse(p domain.Post, targets []domain.PostTarget) map[string]any {
+	targetsOut := make([]map[string]any, 0, len(targets))
+	for _, t := range targets {
+		targetsOut = append(targetsOut, map[string]any{
+			"id":                t.ID,
+			"platform":          t.Platform,
+			"captionOverride":   t.CaptionOverride,
+			"mediaUrlsOverride": t.MediaURLsOverride,
+			"settings":          t.Settings,
+			"status":            t.Status,
+			"platformPostId":    t.PlatformPostID,
+			"error":             t.Error,
+			"publishedAt":       t.PublishedAt,
+		})
+	}
+	return map[string]any{
+		"id":               p.ID,
+		"defaultCaption":   p.DefaultCaption,
+		"defaultMediaKind": p.DefaultMediaKind,
+		"defaultMediaUrls": p.DefaultMediaURLs,
+		"status":           p.Status,
+		"scheduledAt":      p.ScheduledAt,
+		"createdAt":        p.CreatedAt,
+		"targets":          targetsOut,
+	}
 }
