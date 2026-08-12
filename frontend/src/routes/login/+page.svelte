@@ -3,6 +3,7 @@
 	import { providers } from '$lib/providers/registry';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/state';
+	import Logo from '$lib/components/Logo.svelte';
 
 	const errorMessages: Record<string, string> = {
 		missing_code_or_state: 'That sign-in link looks incomplete. Please try again.',
@@ -16,12 +17,8 @@
 </svelte:head>
 
 <main class="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-	<a
-		href={resolve('/')}
-		class="flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-bold"
-	>
-		elci
-		<span class="inline-block h-1.5 w-1.5 rounded-full bg-(--color-accent)"></span>
+	<a href={resolve('/')} aria-label="elci home" class="text-(--color-logo)">
+		<Logo />
 	</a>
 	<h1 class="mt-6 text-2xl font-bold tracking-tight">Sign in to elci</h1>
 	<p class="mt-2 max-w-sm text-sm text-(--color-text-muted)">
