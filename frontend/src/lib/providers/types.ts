@@ -14,7 +14,7 @@ export interface SettingsPanelProps {
 export interface PreviewPanelProps {
 	caption: string;
 	mediaKind: MediaKind | null;
-	mediaUrl: string | null;
+	mediaUrls: string[];
 	settings: Record<string, unknown>;
 	accountInfo: AccountInfo | null;
 }

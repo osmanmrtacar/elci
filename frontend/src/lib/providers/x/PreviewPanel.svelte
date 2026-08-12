@@ -6,7 +6,7 @@
 	import ShareIcon from '$lib/components/icons/ShareIcon.svelte';
 	import type { PreviewPanelProps } from '../types';
 
-	let { caption, mediaKind, mediaUrl, accountInfo }: PreviewPanelProps = $props();
+	let { caption, mediaKind, mediaUrls, accountInfo }: PreviewPanelProps = $props();
 </script>
 
 <!-- A literal recreation of a post in the X timeline — avatar, name/handle,
@@ -34,19 +34,37 @@ text, media, then the reply/repost/like/share row. -->
 				{caption || 'Your post will appear here.'}
 			</p>
 
-			{#if mediaUrl}
+			{#if mediaUrls.length > 0}
 				<div class="mt-2 overflow-hidden rounded-xl border border-border">
 					{#if mediaKind === 'video'}
 						<video
-							src={mediaUrl}
+							src={mediaUrls[0]}
 							class="max-h-56 w-full object-cover"
 							autoplay
 							muted
 							loop
 							playsinline
 						></video>
+					{:else if mediaUrls.length === 1}
+						<img src={mediaUrls[0]} alt="" class="max-h-56 w-full object-cover" />
+					{:else if mediaUrls.length === 2}
+						<div class="grid h-44 grid-cols-2 gap-0.5">
+							{#each mediaUrls as url (url)}
+								<img src={url} alt="" class="h-full w-full object-cover" />
+							{/each}
+						</div>
+					{:else if mediaUrls.length === 3}
+						<div class="grid h-44 grid-cols-2 grid-rows-2 gap-0.5">
+							<img src={mediaUrls[0]} alt="" class="row-span-2 h-full w-full object-cover" />
+							<img src={mediaUrls[1]} alt="" class="h-full w-full object-cover" />
+							<img src={mediaUrls[2]} alt="" class="h-full w-full object-cover" />
+						</div>
 					{:else}
-						<img src={mediaUrl} alt="" class="max-h-56 w-full object-cover" />
+						<div class="grid h-44 grid-cols-2 grid-rows-2 gap-0.5">
+							{#each mediaUrls.slice(0, 4) as url (url)}
+								<img src={url} alt="" class="h-full w-full object-cover" />
+							{/each}
+						</div>
 					{/if}
 				</div>
 			{/if}

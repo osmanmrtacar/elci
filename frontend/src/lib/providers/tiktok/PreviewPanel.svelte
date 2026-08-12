@@ -3,9 +3,10 @@
 	import CommentIcon from '$lib/components/icons/CommentIcon.svelte';
 	import BookmarkIcon from '$lib/components/icons/BookmarkIcon.svelte';
 	import ShareIcon from '$lib/components/icons/ShareIcon.svelte';
+	import MediaCarousel from '../MediaCarousel.svelte';
 	import type { PreviewPanelProps } from '../types';
 
-	let { caption, mediaKind, mediaUrl, accountInfo }: PreviewPanelProps = $props();
+	let { caption, mediaKind, mediaUrls, accountInfo }: PreviewPanelProps = $props();
 </script>
 
 <!-- A literal recreation of the TikTok For You feed card — full-bleed video,
@@ -14,13 +15,8 @@ caption overlaid at the bottom, action rail on the right — since that's what
 <div
 	class="relative aspect-[9/16] w-full max-w-[280px] overflow-hidden rounded-2xl bg-black shadow-[0_30px_60px_-25px_rgba(16,24,40,0.35)]"
 >
-	{#if mediaUrl}
-		{#if mediaKind === 'video'}
-			<video src={mediaUrl} class="h-full w-full object-cover" autoplay muted loop playsinline
-			></video>
-		{:else}
-			<img src={mediaUrl} alt="" class="h-full w-full object-cover" />
-		{/if}
+	{#if mediaUrls.length > 0}
+		<MediaCarousel {mediaUrls} {mediaKind} />
 	{:else}
 		<div
 			class="flex h-full w-full items-center justify-center bg-gradient-to-br from-(--color-navy) to-(--color-accent)"

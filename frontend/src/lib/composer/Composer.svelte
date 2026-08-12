@@ -19,8 +19,11 @@
 		new Set(connections.filter((c) => c.isActive).map((c) => c.platform))
 	);
 
+	const maxImages = 10; // Instagram's own carousel cap; the most any platform here allows.
+
 	let defaultCaption = $state('');
-	let media = $state<{ id: number; publicUrl: string; kind: MediaKind } | null>(null);
+	let mediaItems = $state<{ id: number; publicUrl: string; kind: MediaKind }[]>([]);
+	let mediaKind = $derived(mediaItems[0]?.kind ?? null);
 	let uploading = $state(false);
 	let uploadError = $state<string | null>(null);
 
@@ -90,19 +93,51 @@
 		})
 	);
 
-	async function handleFile(e: Event) {
-		const file = (e.target as HTMLInputElement).files?.[0];
-		if (!file) return;
-		uploading = true;
+	async function handleFiles(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const files = Array.from(input.files ?? []);
+		input.value = ''; // allow re-selecting the same file(s) later
+		if (files.length === 0) return;
+
 		uploadError = null;
-		const kind: MediaKind = file.type.startsWith('video/') ? 'video' : 'image';
+		const kinds = files.map((f): MediaKind => (f.type.startsWith('video/') ? 'video' : 'image'));
+
+		if (kinds.includes('video') && (files.length > 1 || mediaItems.length > 0)) {
+			uploadError = 'A video must be the only file in a post — remove it to add multiple images.';
+			return;
+		}
+		if (kinds[0] === 'image' && mediaItems.some((m) => m.kind === 'video')) {
+			// Switching from a single video to images: start the image set fresh.
+			mediaItems = [];
+		}
+		if (kinds[0] === 'image' && mediaItems.length + files.length > maxImages) {
+			uploadError = `You can add up to ${maxImages} images.`;
+			return;
+		}
+
+		uploading = true;
 		try {
-			media = await uploadMedia(file, kind);
+			for (const [i, file] of files.entries()) {
+				const uploaded = await uploadMedia(file, kinds[i]);
+				mediaItems = [...mediaItems, uploaded];
+			}
 		} catch (err) {
 			uploadError = err instanceof Error ? err.message : 'upload failed';
 		} finally {
 			uploading = false;
 		}
+	}
+
+	function removeMedia(id: number) {
+		mediaItems = mediaItems.filter((m) => m.id !== id);
+	}
+
+	function moveMedia(index: number, direction: -1 | 1) {
+		const target = index + direction;
+		if (target < 0 || target >= mediaItems.length) return;
+		const next = [...mediaItems];
+		[next[index], next[target]] = [next[target], next[index]];
+		mediaItems = next;
 	}
 
 	async function submit(action: 'draft' | 'schedule' | 'publish') {
@@ -131,8 +166,8 @@
 			}));
 			const post = await createPost({
 				defaultCaption,
-				defaultMediaKind: media?.kind ?? null,
-				defaultMediaUrls: media ? [media.publicUrl] : [],
+				defaultMediaKind: mediaKind,
+				defaultMediaUrls: mediaItems.map((m) => m.publicUrl),
 				targets
 			});
 			draftId = post.id;
@@ -245,22 +280,86 @@
 
 				<div>
 					<span class="mb-1 block text-sm font-medium">Media</span>
-					{#if media}
-						<div class="flex items-center gap-3 rounded-lg border border-border p-3">
-							{#if media.kind === 'video'}
-								<video src={media.publicUrl} class="h-16 w-16 rounded-md object-cover" muted
-								></video>
-							{:else}
-								<img src={media.publicUrl} alt="" class="h-16 w-16 rounded-md object-cover" />
+					{#if mediaItems.length > 0}
+						<div class="flex flex-wrap gap-2">
+							{#each mediaItems as item, i (item.id)}
+								<div class="group relative h-16 w-16 shrink-0">
+									{#if item.kind === 'video'}
+										<video
+											src={item.publicUrl}
+											class="h-full w-full rounded-md object-cover"
+											muted
+										></video>
+									{:else}
+										<img src={item.publicUrl} alt="" class="h-full w-full rounded-md object-cover" />
+									{/if}
+									<button
+										type="button"
+										onclick={() => removeMedia(item.id)}
+										aria-label="Remove"
+										class="absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full bg-(--color-status-failed) text-white opacity-0 group-hover:opacity-100"
+									>
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3 w-3">
+											<path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
+										</svg>
+									</button>
+									{#if mediaItems.length > 1}
+										<div
+											class="absolute inset-x-0 bottom-0 flex justify-center gap-0.5 opacity-0 group-hover:opacity-100"
+										>
+											<button
+												type="button"
+												disabled={i === 0}
+												onclick={() => moveMedia(i, -1)}
+												aria-label="Move earlier"
+												class="grid h-4 w-4 place-items-center rounded bg-black/60 text-white disabled:opacity-30"
+											>
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-2.5 w-2.5">
+													<path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" />
+												</svg>
+											</button>
+											<button
+												type="button"
+												disabled={i === mediaItems.length - 1}
+												onclick={() => moveMedia(i, 1)}
+												aria-label="Move later"
+												class="grid h-4 w-4 place-items-center rounded bg-black/60 text-white disabled:opacity-30"
+											>
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-2.5 w-2.5">
+													<path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+												</svg>
+											</button>
+										</div>
+									{/if}
+								</div>
+							{/each}
+							{#if mediaKind === 'image' && mediaItems.length < maxImages}
+								<label
+									class="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-md border border-dashed border-border text-(--color-text-muted) hover:border-(--color-accent) hover:text-(--color-text) {uploading
+										? 'pointer-events-none opacity-60'
+										: ''}"
+								>
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="h-5 w-5">
+										<path d="M12 5v14M5 12h14" stroke-linecap="round" />
+									</svg>
+									<input
+										type="file"
+										accept="image/*"
+										multiple
+										onchange={handleFiles}
+										disabled={uploading}
+										class="sr-only"
+									/>
+								</label>
 							{/if}
-							<button
-								type="button"
-								onclick={() => (media = null)}
-								class="text-xs text-(--color-text-muted) hover:text-(--color-status-failed)"
-							>
-								Remove
-							</button>
 						</div>
+						{#if mediaKind === 'image'}
+							<p class="mt-1.5 font-mono text-[11px] text-(--color-text-muted)">
+								{mediaItems.length}
+								{mediaItems.length === 1 ? 'image' : 'images'} — Instagram and TikTok publish these as
+								a carousel; X uses up to the first 4.
+							</p>
+						{/if}
 					{:else}
 						<label
 							class="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-(--color-text-muted) hover:border-(--color-accent) hover:text-(--color-text) {uploading
@@ -285,19 +384,20 @@
 									stroke-linejoin="round"
 								/>
 							</svg>
-							{uploading ? 'Uploading…' : 'Upload an image or video'}
+							{uploading ? 'Uploading…' : 'Upload images or a video'}
 							<input
 								type="file"
 								accept="image/*,video/*"
-								onchange={handleFile}
+								multiple
+								onchange={handleFiles}
 								disabled={uploading}
 								class="sr-only"
 							/>
 						</label>
-						{#if uploadError}<p class="mt-1 text-xs text-(--color-status-failed)">
-								{uploadError}
-							</p>{/if}
 					{/if}
+					{#if uploadError}<p class="mt-1 text-xs text-(--color-status-failed)">
+							{uploadError}
+						</p>{/if}
 				</div>
 			</div>
 		{:else}
@@ -335,7 +435,7 @@
 
 				<provider.SettingsPanel
 					caption={effectiveCaption(id)}
-					mediaKind={media?.kind ?? null}
+					{mediaKind}
 					bind:settings={overrides[id].settings}
 					accountInfo={accountInfoCache[id] ?? null}
 					infoError={infoErrors[id] ?? null}
@@ -415,8 +515,8 @@
 					{/if}
 					<provider.PreviewPanel
 						caption={effectiveCaption(id)}
-						mediaKind={media?.kind ?? null}
-						mediaUrl={media?.publicUrl ?? null}
+						{mediaKind}
+						mediaUrls={mediaItems.map((m) => m.publicUrl)}
 						settings={overrides[id]?.settings ?? {}}
 						accountInfo={accountInfoCache[id] ?? null}
 					/>

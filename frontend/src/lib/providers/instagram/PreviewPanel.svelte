@@ -4,9 +4,10 @@
 	import CommentIcon from '$lib/components/icons/CommentIcon.svelte';
 	import ShareIcon from '$lib/components/icons/ShareIcon.svelte';
 	import BookmarkIcon from '$lib/components/icons/BookmarkIcon.svelte';
+	import MediaCarousel from '../MediaCarousel.svelte';
 	import type { PreviewPanelProps } from '../types';
 
-	let { caption, mediaKind, mediaUrl, accountInfo }: PreviewPanelProps = $props();
+	let { caption, mediaKind, mediaUrls, accountInfo }: PreviewPanelProps = $props();
 </script>
 
 <!-- A literal recreation of an Instagram feed post — header, square media,
@@ -28,13 +29,8 @@ action row, then caption — rather than an abstract settings summary. -->
 	</div>
 
 	<div class="relative aspect-square w-full bg-(--color-border)">
-		{#if mediaUrl}
-			{#if mediaKind === 'video'}
-				<video src={mediaUrl} class="h-full w-full object-cover" autoplay muted loop playsinline
-				></video>
-			{:else}
-				<img src={mediaUrl} alt="" class="h-full w-full object-cover" />
-			{/if}
+		{#if mediaUrls.length > 0}
+			<MediaCarousel {mediaUrls} {mediaKind} />
 		{:else}
 			<div class="flex h-full items-center justify-center">
 				<p class="font-mono text-[11px] text-(--color-text-muted)">No media yet</p>
