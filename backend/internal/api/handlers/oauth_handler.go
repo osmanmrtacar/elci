@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/osmanmertacar/elci/backend/internal/api/middleware"
 	"github.com/osmanmertacar/elci/backend/internal/service"
@@ -17,7 +18,7 @@ type OAuthHandler struct {
 }
 
 func NewOAuthHandler(connections *service.ConnectionService, frontendURL string, logger *slog.Logger) *OAuthHandler {
-	return &OAuthHandler{connections: connections, frontendURL: frontendURL, logger: logger}
+	return &OAuthHandler{connections: connections, frontendURL: strings.TrimRight(frontendURL, "/"), logger: logger}
 }
 
 func (h *OAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
