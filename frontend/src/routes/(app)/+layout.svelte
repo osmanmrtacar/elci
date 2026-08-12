@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import { auth } from '$lib/auth.svelte';
 	import { theme } from '$lib/theme.svelte';
+	import Logo from '$lib/components/Logo.svelte';
 
 	let { children } = $props();
 	let ready = $state(false);
@@ -27,12 +28,8 @@
 	<div class="min-h-screen">
 		<header class="sticky top-0 z-30 border-b border-border/70 bg-(--color-bg)/85 backdrop-blur">
 			<div class="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-4">
-				<a
-					href={resolve('/dashboard')}
-					class="flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-bold"
-				>
-					elci
-					<span class="inline-block h-1.5 w-1.5 rounded-full bg-(--color-accent)"></span>
+				<a href={resolve('/dashboard')} aria-label="elci home" class="shrink-0 text-(--color-logo)">
+					<Logo />
 				</a>
 
 				<nav class="flex items-center gap-4 text-sm font-medium">
