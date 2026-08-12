@@ -99,6 +99,17 @@ func (r *sqliteConnectionRepository) Upsert(ctx context.Context, c domain.Platfo
 			scope = excluded.scope,
 			is_active = 1,
 			last_used_at = excluded.last_used_at
+		ON CONFLICT (platform, platform_user_id) DO UPDATE SET
+			user_id = excluded.user_id,
+			username = excluded.username,
+			display_name = excluded.display_name,
+			avatar_url = excluded.avatar_url,
+			access_token = excluded.access_token,
+			refresh_token = excluded.refresh_token,
+			token_expires_at = excluded.token_expires_at,
+			scope = excluded.scope,
+			is_active = 1,
+			last_used_at = excluded.last_used_at
 	`,
 		c.UserID, c.Platform, c.PlatformUserID, c.Username, c.DisplayName, c.AvatarURL,
 		c.AccessToken, c.RefreshToken, c.TokenExpiresAt, c.Scope, time.Now(),

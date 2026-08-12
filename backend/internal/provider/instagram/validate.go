@@ -8,10 +8,13 @@ import (
 
 const maxCaptionLen = 2200
 
-// ValidateSettings covers what this MVP actually supports: exactly one
-// image or video per post. Carousels are a real Instagram feature but
-// aren't implemented yet, so multiple media URLs are rejected rather than
-// silently only posting the first one.
+// maxCarouselItems is Instagram's own limit on how many images a single
+// carousel post may contain.
+const maxCarouselItems = 10
+
+// ValidateSettings allows exactly one video, or one to maxCarouselItems
+// images — a single image publishes directly, more than one publishes as a
+// carousel (see Publish).
 func (p *Provider) ValidateSettings(content provider.Content, _ map[string]any, _ provider.AccountInfo) []provider.ValidationError {
 	var errs []provider.ValidationError
 	add := func(field, format string, a ...any) {
@@ -21,8 +24,14 @@ func (p *Provider) ValidateSettings(content provider.Content, _ map[string]any, 
 	if len(content.Caption) > maxCaptionLen {
 		add("caption", "caption must be %d characters or fewer", maxCaptionLen)
 	}
-	if len(content.MediaURLs) != 1 {
-		add("media", "exactly one image or video is required")
+
+	switch {
+	case content.MediaKind == provider.MediaVideo && len(content.MediaURLs) != 1:
+		add("media", "exactly one video is required")
+	case content.MediaKind == provider.MediaImage && len(content.MediaURLs) == 0:
+		add("media", "at least one image is required")
+	case content.MediaKind == provider.MediaImage && len(content.MediaURLs) > maxCarouselItems:
+		add("media", "a carousel post allows at most %d images", maxCarouselItems)
 	}
 
 	return errs

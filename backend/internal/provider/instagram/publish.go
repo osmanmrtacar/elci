@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/osmanmertacar/elci/backend/internal/provider"
@@ -21,37 +22,85 @@ type containerStatusResponse struct {
 // processing it (required for video/Reels, usually instant for images),
 // then publishes it. By the time this returns, the post is live — there is
 // nothing left for PollStatus to wait on.
+//
+// Multiple image URLs are published as a carousel: each image becomes its
+// own item container, then a parent CAROUSEL container references them by
+// ID. A single image (or a video) skips straight to the plain container
+// Instagram's API expects in that case.
 func (p *Provider) Publish(ctx context.Context, token provider.Token, content provider.Content, _ map[string]any) (provider.PublishRef, error) {
-	form := url.Values{
-		"access_token": {token.AccessToken},
-		"caption":      {content.Caption},
+	var containerID string
+	var err error
+
+	switch {
+	case content.MediaKind == provider.MediaVideo:
+		containerID, err = p.createContainer(ctx, token.AccessToken, url.Values{
+			"video_url":  {content.MediaURLs[0]},
+			"media_type": {"REELS"},
+			"caption":    {content.Caption},
+		})
+	case len(content.MediaURLs) > 1:
+		containerID, err = p.createCarouselContainer(ctx, token.AccessToken, content)
+	default:
+		containerID, err = p.createContainer(ctx, token.AccessToken, url.Values{
+			"image_url": {content.MediaURLs[0]},
+			"caption":   {content.Caption},
+		})
 	}
-	if content.MediaKind == provider.MediaVideo {
-		form.Set("video_url", content.MediaURLs[0])
-		form.Set("media_type", "REELS")
-	} else {
-		form.Set("image_url", content.MediaURLs[0])
+	if err != nil {
+		return provider.PublishRef{}, err
 	}
 
-	var container containerResponse
-	if err := postGraph(ctx, "/me/media", form, &container); err != nil {
-		return provider.PublishRef{}, fmt.Errorf("instagram: create container: %w", err)
-	}
-
-	if err := waitUntilFinished(ctx, token.AccessToken, container.ID); err != nil {
+	if err := waitUntilFinished(ctx, token.AccessToken, containerID); err != nil {
 		return provider.PublishRef{}, err
 	}
 
 	var published containerResponse
-	err := postGraph(ctx, "/me/media_publish", url.Values{
+	err = postGraph(ctx, "/me/media_publish", url.Values{
 		"access_token": {token.AccessToken},
-		"creation_id":  {container.ID},
+		"creation_id":  {containerID},
 	}, &published)
 	if err != nil {
 		return provider.PublishRef{}, fmt.Errorf("instagram: publish container: %w", err)
 	}
 
 	return provider.PublishRef{ID: published.ID}, nil
+}
+
+func (p *Provider) createContainer(ctx context.Context, accessToken string, form url.Values) (string, error) {
+	form.Set("access_token", accessToken)
+
+	var container containerResponse
+	if err := postGraph(ctx, "/me/media", form, &container); err != nil {
+		return "", fmt.Errorf("instagram: create container: %w", err)
+	}
+	return container.ID, nil
+}
+
+// createCarouselContainer creates one item container per image, waits for
+// each to finish processing (Instagram requires children to be FINISHED
+// before they can be attached to a carousel), then creates the parent
+// CAROUSEL container referencing them.
+func (p *Provider) createCarouselContainer(ctx context.Context, accessToken string, content provider.Content) (string, error) {
+	childIDs := make([]string, 0, len(content.MediaURLs))
+	for _, imageURL := range content.MediaURLs {
+		id, err := p.createContainer(ctx, accessToken, url.Values{
+			"image_url":        {imageURL},
+			"is_carousel_item": {"true"},
+		})
+		if err != nil {
+			return "", err
+		}
+		if err := waitUntilFinished(ctx, accessToken, id); err != nil {
+			return "", err
+		}
+		childIDs = append(childIDs, id)
+	}
+
+	return p.createContainer(ctx, accessToken, url.Values{
+		"media_type": {"CAROUSEL"},
+		"children":   {strings.Join(childIDs, ",")},
+		"caption":    {content.Caption},
+	})
 }
 
 func waitUntilFinished(ctx context.Context, accessToken, containerID string) error {
