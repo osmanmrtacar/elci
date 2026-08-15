@@ -31,7 +31,7 @@ func (p *Provider) UsesPKCE() bool { return false }
 func (p *Provider) AuthURL(state, _ string) string {
 	q := url.Values{
 		"client_key":    {p.cfg.ClientKey},
-		"scope":         {"user.info.basic,video.publish"},
+		"scope":         {"user.info.basic,video.publish,video.upload"},
 		"response_type": {"code"},
 		"redirect_uri":  {p.cfg.RedirectURI},
 		"state":         {state},
