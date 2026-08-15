@@ -18,5 +18,7 @@ type MediaAsset struct {
 	ContentType     string
 	SizeBytes       int64
 	DurationSeconds *int
+	Width           *int
+	Height          *int
 	CreatedAt       time.Time
 }

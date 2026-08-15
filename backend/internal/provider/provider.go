@@ -42,6 +42,15 @@ type Content struct {
 	// media asset's stored metadata), so providers can enforce their own
 	// max-duration rules server-side rather than trusting the client.
 	MediaDurationSec *int
+	// MediaContentTypes, MediaWidths, and MediaHeights are parallel to
+	// MediaURLs (populated from each URL's stored media_assets row, where
+	// known) so providers can reject files their own platform would bounce
+	// — wrong format, oversized dimensions — before Publish ever calls out.
+	// A zero value means unknown, not "no restriction": providers should
+	// treat 0 as unverifiable rather than as a passing check.
+	MediaContentTypes []string
+	MediaWidths       []int
+	MediaHeights      []int
 }
 
 type ValidationError struct {

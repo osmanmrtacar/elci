@@ -28,6 +28,7 @@ type PostService struct {
 	posts       repository.PostRepository
 	targets     repository.PostTargetRepository
 	connections repository.ConnectionRepository
+	media       repository.MediaRepository
 }
 
 func NewPostService(
@@ -35,8 +36,9 @@ func NewPostService(
 	posts repository.PostRepository,
 	targets repository.PostTargetRepository,
 	connections repository.ConnectionRepository,
+	media repository.MediaRepository,
 ) *PostService {
-	return &PostService{registry: registry, posts: posts, targets: targets, connections: connections}
+	return &PostService{registry: registry, posts: posts, targets: targets, connections: connections, media: media}
 }
 
 type TargetInput struct {
@@ -175,7 +177,7 @@ func (s *PostService) validateAll(ctx context.Context, userID int64, post domain
 			continue
 		}
 
-		if errs := p.ValidateSettings(targetContent(post, t), t.Settings, info); len(errs) > 0 {
+		if errs := p.ValidateSettings(s.targetContent(ctx, post, t), t.Settings, info); len(errs) > 0 {
 			failures.ByTarget[t.Platform] = errs
 		}
 	}
@@ -214,7 +216,7 @@ func (s *PostService) publishTarget(ctx context.Context, post domain.Post, t dom
 		return
 	}
 
-	ref, err := p.Publish(ctx, token, targetContent(post, t), t.Settings)
+	ref, err := p.Publish(ctx, token, s.targetContent(ctx, post, t), t.Settings)
 	if err != nil {
 		_ = s.targets.UpdateStatus(ctx, t.ID, domain.TargetStatusFailed, "", err.Error())
 		return
@@ -310,11 +312,37 @@ func (s *PostService) recomputePostStatus(ctx context.Context, postID int64) err
 	return s.posts.UpdateStatus(ctx, postID, status)
 }
 
-func targetContent(post domain.Post, t domain.PostTarget) provider.Content {
+// targetContent looks up each media URL's stored asset (uploads are recorded
+// at confirm time, keyed by the same user) so providers can validate format
+// and dimensions against what was actually uploaded, not just trust the URL.
+// A lookup miss (asset deleted, or not one of this user's own uploads) just
+// leaves that entry's content type/dimensions at zero — unknown, not passing.
+func (s *PostService) targetContent(ctx context.Context, post domain.Post, t domain.PostTarget) provider.Content {
 	caption, kind, urls := t.Content(post)
+
+	contentTypes := make([]string, len(urls))
+	widths := make([]int, len(urls))
+	heights := make([]int, len(urls))
+	for i, url := range urls {
+		asset, err := s.media.GetByPublicURL(ctx, post.UserID, url)
+		if err != nil {
+			continue
+		}
+		contentTypes[i] = asset.ContentType
+		if asset.Width != nil {
+			widths[i] = *asset.Width
+		}
+		if asset.Height != nil {
+			heights[i] = *asset.Height
+		}
+	}
+
 	return provider.Content{
-		Caption:   caption,
-		MediaKind: provider.MediaKind(kind),
-		MediaURLs: urls,
+		Caption:           caption,
+		MediaKind:         provider.MediaKind(kind),
+		MediaURLs:         urls,
+		MediaContentTypes: contentTypes,
+		MediaWidths:       widths,
+		MediaHeights:      heights,
 	}
 }

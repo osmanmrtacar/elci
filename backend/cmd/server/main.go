@@ -94,7 +94,7 @@ func main() {
 
 	tokens := auth.NewTokenIssuer(cfg.JWTSecret, cfg.JWTTTL)
 	connectionService := service.NewConnectionService(registry, users, connections, sessions, tokens)
-	postService := service.NewPostService(registry, postRepo, postTargetRepo, connections)
+	postService := service.NewPostService(registry, postRepo, postTargetRepo, connections, mediaRepo)
 
 	handler := api.NewRouter(api.Deps{
 		Tokens:             tokens,

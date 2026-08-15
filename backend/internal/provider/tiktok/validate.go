@@ -13,7 +13,17 @@ import (
 const (
 	maxVideoCaptionLen = 2200
 	maxPhotoCaptionLen = 4000
+
+	// TikTok's Content Posting API rejects anything else for photo posts —
+	// confirmed against the real API via file_format_check_failed after PNG
+	// uploads, and picture_size_check_failed above this pixel cap.
+	maxPhotoDimensionPx = 1080
 )
+
+var allowedPhotoContentTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/webp": true,
+}
 
 // ValidateSettings re-checks everything TikTok's Direct Post UX guidelines
 // require against the account's *live* creator_info (info.Extra), so a
@@ -60,6 +70,29 @@ func (p *Provider) ValidateSettings(content provider.Content, settings map[strin
 		if maxDuration, ok := info.Extra["max_video_post_duration_sec"].(int); ok && maxDuration > 0 && content.MediaDurationSec != nil {
 			if *content.MediaDurationSec > maxDuration {
 				add("media", "video is longer than the %ds this account allows", maxDuration)
+			}
+		}
+	}
+
+	if content.MediaKind == provider.MediaImage {
+		for i := range content.MediaURLs {
+			ct := ""
+			if i < len(content.MediaContentTypes) {
+				ct = content.MediaContentTypes[i]
+			}
+			if ct != "" && !allowedPhotoContentTypes[ct] {
+				add("media", "image %d is %s — TikTok only accepts JPEG or WebP for photo posts", i+1, ct)
+			}
+
+			w, h := 0, 0
+			if i < len(content.MediaWidths) {
+				w = content.MediaWidths[i]
+			}
+			if i < len(content.MediaHeights) {
+				h = content.MediaHeights[i]
+			}
+			if w > maxPhotoDimensionPx || h > maxPhotoDimensionPx {
+				add("media", "image %d is %dx%d — TikTok caps photo dimensions at %dp", i+1, w, h, maxPhotoDimensionPx)
 			}
 		}
 	}
