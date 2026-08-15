@@ -54,6 +54,9 @@
 		if (mediaKind === 'video') {
 			if (duetDisabled) settings.duet = false;
 			if (stitchDisabled) settings.stitch = false;
+		} else {
+			settings.duet = false;
+			settings.stitch = false;
 		}
 		// Branded content and a private ("only me") audience are mutually
 		// exclusive — if the account's live options mean one of these is
@@ -156,7 +159,7 @@
 			<Toggle
 				checked={discloseContent}
 				onchange={(v: boolean) => (settings.disclose_content = v)}
-				label="Disclose video content"
+				label="Disclose {mediaKind === 'video' ? 'video' : 'photo'} content"
 			/>
 			<p class="mt-1 text-xs text-(--color-text-muted)">
 				Turn on to disclose that this content promotes goods or services in exchange for something
@@ -164,7 +167,12 @@
 			</p>
 
 			{#if discloseContent}
-				<div class="mt-3 space-y-2 border-t border-border pt-3">
+				<div
+					class="mt-3 space-y-2 border-t border-border pt-3"
+					title={!yourBrand && !brandedContent
+						? 'You need to indicate if your content promotes yourself, a third party, or both.'
+						: undefined}
+				>
 					<label class="flex items-start gap-2">
 						<input
 							type="checkbox"

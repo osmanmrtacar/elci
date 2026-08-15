@@ -7,6 +7,7 @@
 	import { getProvider } from '$lib/providers/registry';
 	import { ApiError } from '$lib/api/client';
 	import StatusPill from '$lib/components/StatusPill.svelte';
+	import MediaCarousel from '$lib/providers/MediaCarousel.svelte';
 	import type { Post, ValidationErrors } from '$lib/types';
 
 	function describeError(e: unknown, fallback: string): string {
@@ -110,7 +111,9 @@
 					<!-- svelte-ignore a11y_media_has_caption -->
 					<video src={post.defaultMediaUrls[0]} class="w-full" controls></video>
 				{:else}
-					<img src={post.defaultMediaUrls[0]} alt="" class="w-full" />
+					<div class="relative aspect-square w-full">
+						<MediaCarousel mediaUrls={post.defaultMediaUrls} mediaKind={post.defaultMediaKind} />
+					</div>
 				{/if}
 			</div>
 		{/if}
