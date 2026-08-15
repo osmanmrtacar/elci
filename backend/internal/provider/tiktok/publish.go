@@ -50,9 +50,12 @@ func (p *Provider) Publish(ctx context.Context, token provider.Token, content pr
 	} else {
 		autoAddMusic, _ := settings["auto_add_music"].(bool)
 
+		// MEDIA_UPLOAD sends the photos to the account's TikTok inbox as a
+		// draft instead of publishing live — unlike DIRECT_POST, it works
+		// without the app having passed TikTok's content-sharing audit.
 		err = postJSON(ctx, token.AccessToken, "/post/publish/content/init/", map[string]any{
 			"media_type": "PHOTO",
-			"post_mode":  "DIRECT_POST",
+			"post_mode":  "MEDIA_UPLOAD",
 			"post_info": map[string]any{
 				"description":          content.Caption,
 				"privacy_level":        privacyLevel,
