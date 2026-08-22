@@ -107,6 +107,43 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// SecurityWarnings surfaces configuration that works but weakens the security
+// posture TikTok's developer guidelines expect around credential and token
+// handling ("maintain appropriate technical and administrative controls").
+// They are advisory — Load still succeeds — but each one is worth fixing
+// before a platform audit.
+func (c Config) SecurityWarnings() []string {
+	var warnings []string
+
+	// Known development placeholders that pass the length check but are not
+	// secrets — anyone who has seen the repo can forge session tokens.
+	devSecrets := []string{
+		"this_is_a_very_long_jwt_secret_for_development_only_32_chars_minimum",
+		"change-me-change-me-change-me-change-me",
+	}
+	for _, dev := range devSecrets {
+		if c.JWTSecret == dev {
+			warnings = append(warnings,
+				"JWT_SECRET matches a known development placeholder — replace it with a unique random value (openssl rand -base64 48). Rotating it signs out existing sessions.")
+			break
+		}
+	}
+
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "debug":
+		warnings = append(warnings, "LOG_LEVEL=debug can leak request and token details into production logs — use info or warn")
+	}
+
+	for _, origin := range c.CORSAllowedOrigins {
+		if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "http://127.0.0.1") {
+			warnings = append(warnings, "CORS_ALLOWED_ORIGINS includes "+origin+" — remove localhost origins in production")
+			break
+		}
+	}
+
+	return warnings
+}
+
 func getenv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v

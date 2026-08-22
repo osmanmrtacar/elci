@@ -323,6 +323,7 @@ func (s *PostService) targetContent(ctx context.Context, post domain.Post, t dom
 	contentTypes := make([]string, len(urls))
 	widths := make([]int, len(urls))
 	heights := make([]int, len(urls))
+	var durationSec *int
 	for i, url := range urls {
 		asset, err := s.media.GetByPublicURL(ctx, post.UserID, url)
 		if err != nil {
@@ -335,6 +336,9 @@ func (s *PostService) targetContent(ctx context.Context, post domain.Post, t dom
 		if asset.Height != nil {
 			heights[i] = *asset.Height
 		}
+		if asset.DurationSeconds != nil {
+			durationSec = asset.DurationSeconds
+		}
 	}
 
 	return provider.Content{
@@ -344,5 +348,6 @@ func (s *PostService) targetContent(ctx context.Context, post domain.Post, t dom
 		MediaContentTypes: contentTypes,
 		MediaWidths:       widths,
 		MediaHeights:      heights,
+		MediaDurationSec:  durationSec,
 	}
 }

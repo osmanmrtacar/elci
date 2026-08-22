@@ -37,6 +37,9 @@ func main() {
 		logger.Error("invalid config", "error", err)
 		os.Exit(1)
 	}
+	for _, warning := range cfg.SecurityWarnings() {
+		logger.Warn("configuration warning", "warning", warning)
+	}
 
 	db, err := database.Open(cfg.DatabasePath)
 	if err != nil {
